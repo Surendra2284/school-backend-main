@@ -27,7 +27,7 @@ let activeSessions = {}; // In-memory session tracking
 /** --- Middleware --- */
 app.use(
   cors({
-    origin: ['http://localhost:4200', 'https://r18hk424-3000.inc1.devtunnels.ms/'], // Allow frontend origin and dev tunnel
+    origin: ['http://localhost:4200', 'https://backend1-m4j8.onrender.com'], // Allow frontend origin and dev tunnel
     credentials: false, // Allow cookies/authentication headers
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], // Allowed methods
     allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers

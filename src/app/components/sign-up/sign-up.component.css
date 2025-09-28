@@ -1,0 +1,89 @@
+/* General Layout */
+.row {
+    display: flex;
+    justify-content: center; /* Center the form horizontally */
+    align-items: center;    /* Center the form vertically */
+    height: 100vh;          /* Full viewport height */
+    background-color: #f8f9fa; /* Light background color */
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Form Container Styling */
+  .col {
+    width: 100%;
+    max-width: 400px; /* Restrict the form's width */
+    background-color: #ffffff; /* White background for the form */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+  }
+  
+  /* Form Elements Styling */
+  .form-group {
+    margin-bottom: 20px; /* Space between input fields */
+  }
+  
+  /* Labels */
+  label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #343a40; /* Dark gray color for labels */
+  }
+  
+  /* Input Fields */
+  input.form-control, select.form-control {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  input.form-control:focus, select.form-control:focus {
+    border-color: #28a745; /* Green border on focus */
+    outline: none; /* Remove default focus outline */
+    box-shadow: 0 0 5px rgba(40, 167, 69, 0.5); /* Subtle shadow on focus */
+  }
+  
+  /* Submit Button */
+  button.btn-success {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #fff;
+    background-color: #28a745; /* Green background for success */
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+  }
+  
+  button.btn-success:hover {
+    background-color: #218838; /* Darker green on hover */
+    transform: translateY(-2px); /* Slight lift effect */
+  }
+  
+  button.btn-success:disabled {
+    background-color: #6c757d; /* Gray background for disabled state */
+    cursor: not-allowed; /* Disabled cursor */
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .col {
+      max-width: 90%; /* Adjust form width for smaller screens */
+    }
+  
+    input.form-control, select.form-control {
+      font-size: 13px; /* Slightly smaller input fields on small screens */
+    }
+  
+    button.btn-success {
+      font-size: 14px; /* Adjust button size */
+    }
+  }
+  

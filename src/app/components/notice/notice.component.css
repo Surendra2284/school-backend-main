@@ -1,0 +1,100 @@
+/* Form Styles */
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Space between form fields */
+    max-width: 600px;
+    margin: auto;
+  }
+  
+  .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  label {
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+  
+  input, textarea {
+    padding: 10px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    width: 100%;
+  }
+  
+  textarea {
+    height: 100px; /* Increased height for Notice field */
+    resize: vertical; /* Allow resizing if needed */
+  }
+  
+  button.submit-button {
+    padding: 10px 15px;
+    font-size: 1rem;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+  button.submit-button:hover {
+    background-color: #0056b3;
+  }
+  
+  /* Notice Table Styles */
+  .notice-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  
+  .notice-table th, .notice-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+  }
+  
+  .notice-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+  }
+  
+  .action-button {
+    padding: 5px 10px;
+    font-size: 0.9rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+  .action-button.edit {
+    color: #fff;
+    background-color: #28a745;
+  }
+  
+  .action-button.edit:hover {
+    background-color: #218838;
+  }
+  
+  .action-button.delete {
+    color: #fff;
+    background-color: #dc3545;
+  }
+  
+  .action-button.delete:hover {
+    background-color: #c82333;
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .form {
+      max-width: 100%;
+    }
+  
+    .notice-table {
+      font-size: 0.9rem;
+    }
+  }

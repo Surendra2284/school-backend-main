@@ -1,0 +1,64 @@
+<div class="container">
+  <h1>Attendance Management</h1>
+
+  <form [formGroup]="attendanceForm">
+    <!-- Class Input -->
+    <label for="className">Class:</label>
+    <input type="text" id="className" formControlName="className" placeholder="Enter class name" />
+
+    <!-- Teacher Input -->
+    <label for="teacher">Class Teacher:</label>
+    <input type="text" id="teacher" formControlName="teacher" placeholder="Enter teacher's name" />
+
+    <!-- Date Input -->
+    <label for="date">Date:</label>
+    <input type="date" id="date" formControlName="date" />
+
+    <!-- Student List -->
+    <div class="student-list">
+      <h2>Students:</h2>
+      <div *ngFor="let student of students">
+        <input type="checkbox" [id]="student.id" [(ngModel)]="student.selected" />
+        <label [for]="student.id">{{ student.name }}</label>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <label for="status">Status:</label>
+    <select id="status" formControlName="status">
+      <option value="present">Present</option>
+      <option value="absent">Absent</option>
+    </select>
+
+    <!-- Save Button -->
+    <button type="button" (click)="saveAttendance()">Save Attendance</button>
+  </form>
+
+  <div class="result">{{ message }}</div>
+
+  <!-- Attendance Records -->
+  <h2>Attendance Records</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Class</th>
+        <th>Teacher</th>
+        <th>Date</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let record of attendances">
+        <td>{{ record.className }}</td>
+        <td>{{ record.teacher }}</td>
+        <td>{{ record.date }}</td>
+        <td>{{ record.status }}</td>
+        <td>
+          <button (click)="updateAttendance(record._id, { status: 'present' })">Mark Present</button>
+          <button (click)="deleteAttendance(record._id)">Delete</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

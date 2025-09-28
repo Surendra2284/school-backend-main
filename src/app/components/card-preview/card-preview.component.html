@@ -1,0 +1,10 @@
+<div class="card-container">
+  <div *ngFor="let student of students" class="id-card">
+    <img [src]="'assets/student-photos/' + student['Photo File Name']" alt="Photo" class="photo" />
+    <div class="info">
+      <h3>{{ student.Name }}</h3>
+      <p>Roll No: {{ student['Roll No'] }}</p>
+      <p>Class: {{ student.Class }}</p>
+    </div>
+  </div>
+</div>

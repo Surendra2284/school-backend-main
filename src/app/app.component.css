@@ -1,0 +1,91 @@
+/* General styling */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    background-color: #f9f9f9;
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* Full viewport height */
+  }
+  
+  /* Styling for the top navigation bar */
+  nav {
+    background-color: #575fcf;
+    color: white;
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px 0;
+    font-size: 1rem;
+    position: fixed;
+    top: 0;
+    z-index: 1000; /* Ensures it's above other elements */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  nav a {
+    text-decoration: none;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+  }
+  
+  nav a:hover {
+    background-color: #40407a;
+  }
+  
+  /* Main content container (below navbar) */
+  .main-container {
+    display: flex;
+    flex: 1;
+    margin-top: 50px; /* Offset for the fixed top nav */
+    margin-left:0px;
+    overflow: hidden; /* Prevent overflow issues */
+  }
+  
+  /* Styling for the side navigation */
+  .sidenav {
+    width: 15%; /* Adjust width for the side nav */
+    background-color: #2a2a72;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 0;
+    overflow-y: auto; /* Scrollable if content exceeds height */
+    transition: opacity 0.3s ease; /* Smooth fade-in/out effect */
+  }
+      
+      .sidenav.ng-enter, .sidenav.ng-leave {
+        opacity: 0;
+      }
+      
+  
+  
+  .sidenav a {
+    text-decoration: none;
+    color: white;
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    text-align: center;
+    transition: background-color 0.3s ease;
+  }
+  
+  .sidenav a:hover {
+    background-color: #575fcf;
+  }
+  
+  /* Content area (router-outlet) */
+  .content {
+    flex: 1;
+    padding: 20px;
+    background-color: #fff;
+    overflow-y: auto; /* Scrollable if content exceeds height */
+  }
+  

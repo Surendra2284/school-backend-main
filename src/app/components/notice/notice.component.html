@@ -1,0 +1,81 @@
+<div>
+    <!-- Notice Form -->
+    <form [formGroup]="noticeForm" (ngSubmit)="onSubmit()" class="form">
+      <div class="form-group">
+        <label>Notice ID:</label>
+        <input formControlName="Noticeid" readonly />
+      </div>
+      <div class="form-group">
+        <label>Name:</label>
+        <input formControlName="name" />
+      </div>
+      <div class="form-group">
+        <label>Class:</label>
+        <input formControlName="class" />
+      </div>
+      <div class="form-group">
+        <label>Role:</label>
+        <select formControlName="Role">
+          <option value="" disabled>Select Role</option> <!-- Default prompt -->
+          <option *ngFor="let role of roles" [value]="role">{{ role }}</option>
+        </select>
+        <small *ngIf="noticeForm.get('Role')?.invalid && noticeForm.get('Role')?.touched" class="error-text">
+          Role is required.
+        </small>
+      </div>
+      
+      <div class="form-group">
+        <label>Notice:</label>
+        <textarea formControlName="Notice"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Class Teacher:</label>
+        <input formControlName="classteacher" />
+      </div>
+      <button type="submit" class="submit-button">
+        {{ isEdit ? 'Update Notice' : 'Add Notice' }}
+      </button>
+    </form>
+    <div>
+        <label>Filter by Class Teacher:</label>
+        <input #classTeacherInput type="text" />
+        <button (click)="filterNoticesByClassTeacher(classTeacherInput.value)">Search</button>
+      </div>
+      <div>
+        <label>Filter by Role:</label>
+        <select #roleInput>
+          <option value="" disabled>Select Role</option>
+          <option *ngFor="let role of roles" [value]="role">{{ role }}</option>
+        </select>
+        <button (click)="filterNoticesByRole(roleInput.value)">Search</button>
+      </div>
+    <!-- Display Notice List -->
+    <h3>Notice List</h3>
+    <table class="notice-table">
+      <thead>
+        <tr>
+          <th>Notice ID</th>
+          <th>Name</th>
+          <th>Class</th>
+          <th>Role</th>
+          <th>Notice</th>
+          <th>Class Teacher</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let notice of notices">
+          <td>{{ notice.Noticeid }}</td>
+          <td>{{ notice.name }}</td>
+          <td>{{ notice.class }}</td>
+          <td>{{ notice.Role }}</td>
+          <td>{{ notice.Notice }}</td>
+          <td>{{ notice.classteacher }}</td>
+          <td>
+            <button (click)="editNotice(notice)" class="action-button edit">Edit</button>
+            <button *ngIf="notice._id" (click)="deleteNotice(notice._id)" class="action-button delete">Delete</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>

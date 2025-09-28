@@ -1,0 +1,53 @@
+.student-container {
+    margin: 20px;
+    font-family: Arial, sans-serif;
+  }
+  
+  h3 {
+    color: #333;
+  }
+  
+  label {
+    display: block;
+    margin: 8px 0 4px;
+  }
+  
+  input,
+  textarea,
+  select,
+  button {
+    display: block;
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+  
+  button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+  
+  button:hover {
+    background-color: #45a049;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+  }
+  
+  table th,
+  table td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+  }
+  
+  table th {
+    background-color: #f2f2f2;
+  }

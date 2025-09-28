@@ -1,0 +1,49 @@
+<div class="upload-photo-container">
+    <h2>Manage Photos</h2>
+  
+    <!-- Add New Photo -->
+    <form (submit)="addPhoto($event)">
+      <h3>Add Photo</h3>
+      <label for="addPhotoName">Photo Name:</label>
+      <input type="text" id="addPhotoName" [(ngModel)]="newPhotoName" name="photoName" required />
+      <br />
+      <label for="addPhotoFile">Select Photo:</label>
+      <input type="file" id="addPhotoFile" (change)="onFileSelect($event, 'new')" required />
+      <br />
+      <button type="submit">Add Photo</button>
+    </form>
+  
+    <hr />
+  
+    <!-- Update Existing Photo -->
+    <form (submit)="updatePhoto($event)">
+      <h3>Update Photo</h3>
+      <label for="updatePhotoId">Photo ID:</label>
+      <input type="text" id="updatePhotoId" [(ngModel)]="updatePhotoId" name="photoId" required />
+      <br />
+      <label for="updatePhotoName">New Name (optional):</label>
+      <input type="text" id="updatePhotoName" [(ngModel)]="updatePhotoName" name="photoName" />
+      <br />
+      <label for="updatePhotoFile">Select New Photo (optional):</label>
+      <input type="file" id="updatePhotoFile" (change)="onFileSelect($event, 'update')" />
+      <br />
+      <button type="submit">Update Photo</button>
+    </form>
+  
+    <hr />
+  
+    <!-- View All Photos -->
+    <div>
+      <h3>Stored Photos</h3>
+      <div class="photo-gallery">
+        <div *ngFor="let photo of photos" class="photo-item">
+          <img [src]="photo.image" [alt]="photo.name" class="photo" />
+          <p>{{ photo.name }}</p>
+          <button (click)="deletePhoto(photo._id)">Delete</button>
+        </div>
+      </div>
+    </div>
+  
+    <p class="success-message" *ngIf="successMessage">{{ successMessage }}</p>
+    <p class="error-message" *ngIf="errorMessage">{{ errorMessage }}</p>
+  </div>

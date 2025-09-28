@@ -1,0 +1,53 @@
+<div class="container">
+  <h2>{{ isEdit ? 'Edit Teacher' : 'Add New Teacher' }}</h2>
+
+  <form [formGroup]="teacherForm" (ngSubmit)="onSubmit()">
+    <input formControlName="teacherid" placeholder="Teacher ID" />
+    <input formControlName="name" placeholder="Name" />
+    <input formControlName="Assignclass" placeholder="Assign Class" />
+    <input formControlName="mobileNo" placeholder="Mobile No" />
+    <input formControlName="address" placeholder="Address" />
+    <input formControlName="Role" placeholder="Role" />
+    <input formControlName="Notice" placeholder="Notice (Optional)" />
+    <input formControlName="Email" placeholder="Email" />
+    <input formControlName="subject" placeholder="Subject" />
+    <input formControlName="attendance" type="number" placeholder="Attendance %" />
+    <input formControlName="classteacher" placeholder="Class Teacher Of" />
+    <input formControlName="experience" type="number" placeholder="Experience (Years)" />
+
+    <label>Upload Photo</label>
+    <input type="file" (change)="onPhotoUpload($event)" />
+
+    <button type="submit">{{ isEdit ? 'Update' : 'Add' }} Teacher</button>
+    <button type="button" (click)="resetForm()">Clear</button>
+  </form>
+
+  <hr />
+
+  <h3>Teachers List</h3>
+  <table *ngIf="teachers.length > 0">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Subject</th>
+        <th>Mobile</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let teacher of teachers">
+        <td>{{ teacher.name }}</td>
+        <td>{{ teacher.Email }}</td>
+        <td>{{ teacher.subject }}</td>
+        <td>{{ teacher.mobileNo }}</td>
+        <td>
+          <button (click)="editTeacher(teacher)">Edit</button>
+          <button (click)="deleteTeacher(teacher)">Delete</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p *ngIf="teachers.length === 0">No teachers available.</p>
+</div>

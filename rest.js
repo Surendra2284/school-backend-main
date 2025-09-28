@@ -29,9 +29,9 @@ app.listen(PORT, '0.0.0.0', () => {
 /** --- Middleware --- */
 
 const allowedOrigins = [
-  'http://localhost:4200/',
-  'https://school-frontend-6x4m.onrender.com/',
-  'https://mjrpacademy.netlify.app/'
+  'http://localhost:4200',
+  'https://backend1-m4j8.onrender.com',
+  'https://mjrpacademy.netlify.app'
 ];
 
 app.use(

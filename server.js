@@ -185,17 +185,21 @@ app.post('/logout', (req, res) => {
   }
 });
 
-/** --- Catch-All & Error Handling --- */
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
 });
 
-// Global error handler
+// Global Error Handler
 app.use((err, req, res, next) => {
   console.error('Server error:', err.message);
   res.status(500).json({ error: 'Internal server error', details: err.message });
 });
+app.use((req, res, next) => {
+  console.log(`Incoming request: ${req.method} ${req.path}`);
+  console.log('Request headers:', req.headers);
+  next();
+});
+module.exports = app;
 
 /** --- Start Server --- */
 const port = process.env.PORT || 3000;

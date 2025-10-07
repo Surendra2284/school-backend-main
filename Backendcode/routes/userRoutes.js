@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { addUser, editUser, deleteUser, findUser } = require('../../src/app/services/user');
+
+const { addUser, editUser, deleteUser, findUser } = require('../models/user');
 
 // Route to register a new user
 router.post('/register', async (req, res) => {

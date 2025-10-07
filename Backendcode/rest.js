@@ -89,7 +89,7 @@ app.use('/notices', noticeRoutes);
 app.use('/attendance', attendanceRoutes);
 app.use('/students', studentRoutes);
 app.use('/teachers', teacherRoutes);
-app.use('/user', teacherRoutes);
+app.use('/users', userRoutes);
 /** --- Middleware for Inactive Session Check --- */
 function checkInactiveSession(req, res, next) {
   const username = req.body.username || req.query.username || req.session.username;

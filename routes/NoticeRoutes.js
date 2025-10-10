@@ -24,6 +24,24 @@ router.get('/', async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch notices', error: error.message });
   }
 });
+router.get('/pending-notices', async (req, res) => {
+  try {
+    const notices = await Notice.find({ isApproved: false });
+    res.json(notices);
+  } catch (error) {
+    console.error('Error fetching pending notices:', error);
+    res.status(500).json({ message: 'Failed to fetch pending notices', error: error.message });
+  }
+});
+router.get('/approved', async (req, res) => {
+  try {
+    const notices = await Notice.find({ isApproved: true }).sort({ date: -1 });
+    res.json(notices);
+  } catch (error) {
+    console.error('Error fetching approved notices:', error);
+    res.status(500).json({ message: 'Failed to fetch approved notices', error: error.message });
+  }
+});
 
 // Edit a notice
 router.put('/:id', async (req, res) => {
@@ -88,6 +106,22 @@ router.get('/role/:role', async (req, res) => {
   } catch (error) {
     console.error('Error fetching notices by role:', error);
     res.status(500).json({ message: 'An error occurred while fetching notices', error: error.message });
+  }
+});
+router.put('/approve/:id', async (req, res) => {
+  try {
+    const notice = await Notice.findByIdAndUpdate(
+      req.params.id,
+      { isApproved: true },
+      { new: true }
+    );
+    if (!notice) {
+      return res.status(404).json({ message: 'Notice not found' });
+    }
+    res.json({ message: 'Notice approved successfully', notice });
+  } catch (error) {
+    console.error('Error approving notice:', error);
+    res.status(500).json({ message: 'Failed to approve notice', error: error.message });
   }
 });
 

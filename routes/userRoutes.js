@@ -12,7 +12,15 @@ router.post('/', async (req, res) => {
     res.status(500).json({ message: 'Error creating user', error: error.message });
   }
 });
-
+// Get all users
+router.get('/', async (req, res) => {
+  try {
+    const users = await User.find();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching users', error: error.message });
+  }
+});
 // Update user by ID
 router.put('/:id', async (req, res) => {
   try {

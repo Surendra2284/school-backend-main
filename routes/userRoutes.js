@@ -12,6 +12,15 @@ router.post('/', async (req, res) => {
     res.status(500).json({ message: 'Error creating user', error: error.message });
   }
 });
+// Get pending users
+router.get('/pending-users', async (req, res) => {
+  try {
+    const users = await User.find({ isApproved: false });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch pending users', error: error.message });
+  }
+});
 // Get all users
 router.get('/', async (req, res) => {
   try {
@@ -43,16 +52,7 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// Get user by ID
-router.get('/:id', async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching user', error: error.message });
-  }
-});
+
 
 // Approve user by ID
 router.put('/approve-user/:id', async (req, res) => {
@@ -76,14 +76,15 @@ router.get('/isApproved/:status', async (req, res) => {
   }
 });
 
-// Get pending users
-router.get('/pending-users', async (req, res) => {
+
+// Get user by ID
+router.get('/:id', async (req, res) => {
   try {
-    const users = await User.find({ isApproved: false });
-    res.json(users);
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch pending users', error: error.message });
+    res.status(500).json({ message: 'Error fetching user', error: error.message });
   }
 });
-
 module.exports = router;

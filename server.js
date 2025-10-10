@@ -18,7 +18,7 @@ const noticeRoutes = require('./routes/NoticeRoutes');
 const attendanceRoutes = require('./routes/AttendenceRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const UserModel = require('./models/User');
-
+const userRoutes = require('./routes/userRoutes');
 // --- Active Sessions In-Memory ---
 let activeSessions = {};
 
@@ -84,6 +84,7 @@ app.use('/notices', noticeRoutes);
 app.use('/attendance', attendanceRoutes);
 app.use('/students', studentRoutes);
 app.use('/teachers', teacherRoutes);
+app.use('/users', userRoutes);
 
 /** --- Middleware: Inactive Session Check --- */
 function checkInactiveSession(req, res, next) {

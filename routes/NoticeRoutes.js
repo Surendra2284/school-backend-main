@@ -91,6 +91,17 @@ router.get('/role/:role', async (req, res) => {
   }
 });
 
+router.get('/isApproved/:status', async (req, res) => {
+  try {
+    const isApproved = req.params.status === 'true';
+    const notices = await Notice.find({ isApproved });
+    res.json(notices);
+  } catch (error) {
+    console.error('Error fetching filtered notices:', error);
+    res.status(500).json({ message: 'Failed to fetch notices', error: error.message });
+  }
+});
+
 
 
 

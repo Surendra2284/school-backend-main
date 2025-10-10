@@ -18,6 +18,7 @@ const noticeRoutes = require('./routes/NoticeRoutes');
 const attendanceRoutes = require('./routes/AttendenceRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const UserModel = require('./models/User'); // User model for authentication
+const userRoutes = require('./routes/userRoutes');
 
 // Active Sessions Management
 let activeSessions = {}; // In-memory session tracking
@@ -102,6 +103,7 @@ app.use('/notices', noticeRoutes);
 app.use('/attendance', attendanceRoutes);
 app.use('/students', studentRoutes);
 app.use('/teachers', teacherRoutes);
+app.use('/users', userRoutes);
 
 /** --- Middleware for Inactive Session Check --- */
 function checkInactiveSession(req, res, next) {

@@ -25,7 +25,7 @@ let activeSessions = {};
 /** --- Middleware --- */
 app.use(
   cors({
-    origin: ['http://localhost:4200','https://backend1-m4j8.onrender.com','https://mjrpacademy.netlify.app'], // change later if Angular is deployed
+    origin: ['http://localhost:4200','https://backend1-m4j8.onrender.com','https://school-frontend-6x4m.onrender.com/'], // change later if Angular is deployed
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

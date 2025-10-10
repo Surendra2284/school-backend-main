@@ -49,7 +49,7 @@ router.delete('/delete/:id', async (req, res) => {
 });
 
 // Route to find a user by ID
-router.get('/find/:id', async (req, res) => {
+router.get('/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const result = await findUser(id);

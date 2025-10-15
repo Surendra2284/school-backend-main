@@ -9,8 +9,8 @@ const studentSchema = new mongoose.Schema({
   Role: { type: String, required: true },
   Notice: { type: String },
   Email: { type: String , required: true },
-  attendance: [{ date: Date, status: String }], // Attendance percentage
-  photo: { type: Buffer, required: true } ,
+ attendance: { type: Number, required: true },   // ✅ percentage
+  photo: { type: String },         
   classteacher : { type:String }// Store photo as binary data
 }, { timestamps: true }); // Automatically adds createdAt and updatedAt fields
 

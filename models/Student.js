@@ -14,5 +14,5 @@ const studentSchema = new mongoose.Schema({
   classteacher : { type:String }// Store photo as binary data
 }, { timestamps: true }); // Automatically adds createdAt and updatedAt fields
 
-const Student = mongoose.model('Students', studentSchema);
+const Student = mongoose.model('Student', studentSchema);
 module.exports = Student;

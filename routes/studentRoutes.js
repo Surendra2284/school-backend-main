@@ -13,7 +13,7 @@ const validatePayload = (requiredFields, payload) => {
 
 // Create
 router.post('/add', async (req, res) => {
-  try {
+  try { console.log('Incoming student payload:', req.body);
     const validationError = validatePayload(['name', 'class', 'mobileNo', 'Email'], req.body);
     if (validationError) {
       return res.status(400).json({ message: validationError });
@@ -116,5 +116,7 @@ router.get('/name/:name', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 module.exports = router;

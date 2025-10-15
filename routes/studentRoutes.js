@@ -116,7 +116,6 @@ router.get('/name/:name', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 
 module.exports = router;

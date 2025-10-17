@@ -11,10 +11,3 @@ const NoticeSchema = new mongoose.Schema({
 
 const notice = mongoose.model('Noticedata', NoticeSchema);
 module.exports = notice;
-
-
-
-
-
-
-

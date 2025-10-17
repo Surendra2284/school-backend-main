@@ -66,7 +66,7 @@ router.delete('/:id', async (req, res) => {
 });
 router.get('/username/:username', async (req, res) => {
   try {
-    const teacher = await Teacher.findOne({ username: req.params.name });
+    const teacher = await Teacher.findOne({name: req.params.username });
 
     if (!teacher) {
       return res.status(404).json({ message: 'Teacher not found' });

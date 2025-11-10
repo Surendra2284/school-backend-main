@@ -99,6 +99,113 @@ router.get('/class/:class', async (req, res) => {
   }
 });
 
+
+// POST /students/bulk?upsert=true|false
+router.post('/students/bulk', async (req, res) => {
+  try {
+    const { students } = req.body || {};
+    const upsert = String(req.query.upsert || 'false') === 'true';
+
+    if (!Array.isArray(students) || !students.length) {
+      return res.status(400).json({ message: 'students must be a non-empty array' });
+    }
+
+    // Normalize + validate server-side
+    const MOBILE_RE = /^[6-9]\d{9}$/;
+    const clean = [];
+    const errors = [];
+    const seen = new Set();
+
+    students.forEach((raw, i) => {
+      const row = i + 2; // excel-like numbering
+      const s = {
+        studentId: Number(raw.studentId),
+        name: (raw.name || '').trim(),
+        class: (raw.class || '').trim(),
+        mobileNo: String(raw.mobileNo || '').trim(),
+        address: raw.address || '',
+        Role: raw.Role || 'Student',
+        Notice: raw.Notice || '',
+        Email: (raw.Email || '').trim(),
+        attendance: Number(raw.attendance || 0),
+        photo: raw.photo || '',
+        classteacher: raw.classteacher || ''
+      };
+
+      if (Number.isNaN(s.studentId)) errors.push({ row, error: 'StudentId must be a number' });
+      if (!s.name) errors.push({ row, error: 'Name is required' });
+      if (!s.class) errors.push({ row, error: 'Class is required' });
+      if (!s.Email) errors.push({ row, error: 'Email is required' });
+      if (!s.mobileNo || !MOBILE_RE.test(s.mobileNo)) errors.push({ row, error: 'Invalid MobileNo' });
+
+      const key = s.studentId;
+      if (seen.has(key)) errors.push({ row, error: `Duplicate StudentId in payload: ${key}` });
+      else seen.add(key);
+
+      clean.push(s);
+    });
+
+    if (errors.length) {
+      return res.status(422).json({ message: 'Validation errors', inserted: 0, updated: 0, skipped: 0, errors });
+    }
+
+    // DB existence check
+    const ids = clean.map(s => s.studentId);
+    const existing = await Student.find({ studentId: { $in: ids } }, { studentId: 1 }).lean();
+    const existingSet = new Set(existing.map(e => e.studentId));
+
+    let inserted = 0, updated = 0, skipped = 0;
+    const perRowErrors = [];
+
+    if (upsert) {
+      // Upsert one-by-one to get per-row status
+      for (let i = 0; i < clean.length; i++) {
+        const s = clean[i];
+        try {
+          const resDoc = await Student.findOneAndUpdate(
+            { studentId: s.studentId },
+            { $set: s },
+            { upsert: true, new: true }
+          );
+          if (existingSet.has(s.studentId)) updated++;
+          else inserted++;
+        } catch (err) {
+          perRowErrors.push({ row: i + 2, error: err?.message || 'Upsert failed' });
+        }
+      }
+    } else {
+      // Insert only new ones; skip duplicates
+      const toInsert = clean.filter(s => !existingSet.has(s.studentId));
+      skipped = clean.length - toInsert.length;
+
+      if (toInsert.length) {
+        try {
+          const result = await Student.insertMany(toInsert, { ordered: false });
+          inserted = result.length;
+        } catch (err) {
+          // insertMany with ordered:false may still report partial failures
+          // `err.writeErrors` contains per-doc errors
+          if (Array.isArray(err?.writeErrors)) {
+            inserted = (err.result?.result?.nInserted) || 0;
+            err.writeErrors.forEach((w) => {
+              perRowErrors.push({ row: (w?.index ?? 0) + 2, error: w?.errmsg || 'Insert failed' });
+            });
+          } else {
+            perRowErrors.push({ row: 'unknown', error: err?.message || 'Insert failed' });
+          }
+        }
+      }
+    }
+
+    return res.status(200).json({ inserted, updated, skipped, errors: perRowErrors });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Bulk import failed', error });
+  }
+});
+
+module.exports = router;
+
 // Search by name
 router.get('/name/:name', async (req, res) => {
   try {

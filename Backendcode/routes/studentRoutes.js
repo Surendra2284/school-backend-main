@@ -150,5 +150,137 @@ router.get('/name/:name', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+router.post('/bulk', async (req, res) => {
+  try {
+    const { students } = req.body || {};
+    const upsert = String(req.query.upsert || 'false') === 'true';
+
+    if (!Array.isArray(students) || students.length === 0) {
+      return res.status(400).json({ message: 'students must be a non-empty array' });
+    }
+
+    const MOBILE_RE = /^[6-9]\d{9}$/;
+    const MAX_PHOTO_LEN = 2_000_000; // ~2MB guard
+
+    const clean = [];
+    const errors = [];
+    const seen = new Set();
+
+    students.forEach((raw, i) => {
+      const row = i + 2; // Excel-like row numbering (1 header)
+
+      const s = {
+        studentId: Number(raw.studentId),
+        name: (raw.name || '').trim(),
+        class: (raw.class || '').trim(),
+        mobileNo: String(raw.mobileNo || '').trim(),
+        address: raw.address || '',
+        Role: raw.Role || 'Student',
+        Notice: raw.Notice || '',
+        Email: (raw.Email || '').trim(),
+        attendance: raw.attendance === '' || raw.attendance == null ? 0 : Number(raw.attendance),
+        photo: raw.photo || '',
+        classteacher: raw.classteacher || ''
+      };
+
+      // Validation
+      if (Number.isNaN(s.studentId)) errors.push({ row, error: 'StudentId must be a number' });
+      if (!s.name) errors.push({ row, error: 'Name is required' });
+      if (!s.class) errors.push({ row, error: 'Class is required' });
+      if (!s.Email) errors.push({ row, error: 'Email is required' });
+      if (!s.mobileNo || !MOBILE_RE.test(s.mobileNo)) errors.push({ row, error: 'Invalid MobileNo' });
+
+      // De-dup within file
+      if (seen.has(s.studentId)) {
+        errors.push({ row, error: `Duplicate StudentId in payload: ${s.studentId}` });
+      } else {
+        seen.add(s.studentId);
+      }
+
+      // Optional: drop oversize photo fields to avoid payload bloat
+      if (s.photo && String(s.photo).length > MAX_PHOTO_LEN) {
+        s.photo = '';
+        errors.push({ row, warn: 'Photo removed due to size >2MB' });
+      }
+
+      clean.push(s);
+    });
+
+    if (errors.some(e => !e.warn)) {
+      // Return only hard errors as 422; keep warns in payload too
+      const hard = errors.filter(e => !e.warn);
+      return res.status(422).json({ message: 'Validation errors', inserted: 0, updated: 0, skipped: 0, errors: hard });
+    }
+
+    // Check existing to compute inserted/updated/skipped
+    const ids = clean.map(s => s.studentId);
+    const existing = await Student.find({ studentId: { $in: ids } }, { studentId: 1 }).lean();
+    const existingSet = new Set(existing.map(e => e.studentId));
+
+    let inserted = 0, updated = 0, skipped = 0;
+    const perRowErrors = [];
+
+    if (upsert) {
+      // Efficient upsert using bulkWrite
+      const ops = clean.map((s) => ({
+        updateOne: {
+          filter: { studentId: s.studentId },
+          update: { $set: s },
+          upsert: true
+        }
+      }));
+
+      try {
+        const result = await Student.bulkWrite(ops, { ordered: false });
+
+        // result summary is driver-dependent; cover common fields:
+        const upsertedCount = result.upsertedCount ?? (result.result?.nUpserted ?? 0);
+        const modifiedCount = result.modifiedCount ?? (result.result?.nModified ?? 0);
+        const matchedCount  = result.matchedCount ?? (result.result?.nMatched ?? 0);
+
+        // "updated" = docs that existed and were modified OR matched (we’ll approximate using existingSet)
+        updated = clean.filter(s => existingSet.has(s.studentId)).length;
+        inserted = upsertedCount || (clean.length - updated);
+      } catch (err) {
+        // Collect write errors if any
+        if (Array.isArray(err?.writeErrors)) {
+          err.writeErrors.forEach(w => {
+            const idx = w?.index ?? 0;
+            perRowErrors.push({ row: idx + 2, error: w?.errmsg || w?.err?.message || 'Upsert failed' });
+          });
+        } else {
+          perRowErrors.push({ row: 'unknown', error: err?.message || 'Upsert failed' });
+        }
+      }
+    } else {
+      // Insert-only; skip duplicates
+      const toInsert = clean.filter(s => !existingSet.has(s.studentId));
+      skipped = clean.length - toInsert.length;
+
+      if (toInsert.length) {
+        try {
+          const docs = await Student.insertMany(toInsert, { ordered: false });
+          inserted = Array.isArray(docs) ? docs.length : (docs?.insertedCount ?? toInsert.length);
+        } catch (err) {
+          // Handle modern MongoBulkWriteError
+          if (Array.isArray(err?.writeErrors)) {
+            const okCount = err?.result?.result?.nInserted ?? err?.insertedDocs?.length ?? 0;
+            inserted = okCount;
+            err.writeErrors.forEach((w) => {
+              perRowErrors.push({ row: (w?.index ?? 0) + 2, error: w?.errmsg || w?.err?.message || 'Insert failed' });
+            });
+          } else {
+            perRowErrors.push({ row: 'unknown', error: err?.message || 'Insert failed' });
+          }
+        }
+      }
+    }
+
+    return res.status(200).json({ inserted, updated, skipped, errors: perRowErrors.concat(errors.filter(e => e.warn)) });
+  } catch (error) {
+    console.error('Bulk import fatal:', error);
+    return res.status(500).json({ message: 'Bulk import failed', error: error?.message || String(error) });
+  }
+});
 
 module.exports = router;

@@ -101,6 +101,26 @@ router.get('/class/:class', async (req, res) => {
 
 
 // POST /students/bulk?upsert=true|false
+
+
+
+// Search by name
+router.get('/name/:name', async (req, res) => {
+  try {
+    const name = req.params.name;
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ message: 'Name is required.' });
+    }
+    const students = await Student.find({
+      name: { $regex: name, $options: 'i' },
+      ...req.query
+    });
+    if (!students.length) return res.status(404).json({ message: 'No students found' });
+    res.status(200).json(students);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 router.post('/bulk', async (req, res) => {
   try {
     const { students } = req.body || {};
@@ -231,26 +251,6 @@ router.post('/bulk', async (req, res) => {
   } catch (error) {
     console.error('Bulk import fatal:', error);
     return res.status(500).json({ message: 'Bulk import failed', error: error?.message || String(error) });
-  }
-});
-
-
-
-// Search by name
-router.get('/name/:name', async (req, res) => {
-  try {
-    const name = req.params.name;
-    if (!name || name.trim() === '') {
-      return res.status(400).json({ message: 'Name is required.' });
-    }
-    const students = await Student.find({
-      name: { $regex: name, $options: 'i' },
-      ...req.query
-    });
-    if (!students.length) return res.status(404).json({ message: 'No students found' });
-    res.status(200).json(students);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
   }
 });
 

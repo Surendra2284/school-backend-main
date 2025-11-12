@@ -93,37 +93,82 @@ router.post('/attendance', async (req, res) => {
 /** -------------------------
  * READ with filters
  * ------------------------- */
+// GET /attendance
 router.get('/attendance', async (req, res) => {
   try {
-    const { className, name, username, studentId, date, status, page = 1, limit = 50 } = req.query;
+    const {
+      className,
+      name,
+      username,
+      student,      // <-- NEW: accept student (Mongo ObjectId string) directly
+      studentId,    // existing: numeric school id OR possibly an ObjectId string
+      date,
+      status,
+      page = 1,
+      limit = 50
+    } = req.query;
 
     const attQuery = {};
+
+    // basic filters
     if (username) attQuery.username = { $regex: String(username), $options: 'i' };
     if (status && VALID_STATUS.includes(String(status))) attQuery.status = status;
-
+    // date filtering (same as before)
     if (date) {
       const r = toDayRange(date);
       if (!r) return res.status(400).json({ message: 'Invalid date.' });
       attQuery.date = { $gte: r.start, $lt: r.end };
     }
+    let appliedStudentFilter = false;
 
-    // Student-based filters
-    let needStudentFilter = false;
-    const stuQuery = {};
-    if (className) { stuQuery.class = className; needStudentFilter = true; }
-    if (name) { stuQuery.name = { $regex: String(name), $options: 'i' }; needStudentFilter = true; }
-    if (studentId) {
-      const or = [];
-      if (!Number.isNaN(Number(studentId))) or.push({ studentId: Number(studentId) });
-      if (mongoose.isValidObjectId(String(studentId))) or.push({ _id: String(studentId) });
-      if (or.length) { stuQuery.$or = or; needStudentFilter = true; }
+    if (student) {
+      // if they passed student=<ObjectId>
+      if (!mongoose.isValidObjectId(String(student))) {
+        return res.status(400).json({ message: 'Invalid student ObjectId.' });
+      }
+      attQuery.student = mongoose.Types.ObjectId(String(student));
+      appliedStudentFilter = true;
+    } else if (studentId) {
+      // studentId may be numeric (school roll) or an objectId string
+      const asStr = String(studentId).trim();
+      if (mongoose.isValidObjectId(asStr)) {
+        attQuery.student = mongoose.Types.ObjectId(asStr);
+        appliedStudentFilter = true;
+      } else if (!Number.isNaN(Number(asStr))) {
+        // numeric school id -> resolve student doc
+        const stuDoc = await Student.findOne({ studentId: Number(asStr) }, { _id: 1 });
+        if (!stuDoc) {
+          return res.status(404).json({ message: 'Student not found for given studentId.' });
+        }
+        attQuery.student = stuDoc._id;
+        appliedStudentFilter = true;
+      } else {
+        return res.status(400).json({ message: 'Invalid studentId parameter.' });
+      }
+    } else {
+      // no explicit student filter — keep legacy 'needStudentFilter' behavior if className or name provided
+      // (we will still set attQuery.student = { $in: [...] } if class/name supplied)
     }
 
-    if (needStudentFilter) {
-      const students = await Student.find(stuQuery, { _id: 1 });
-      attQuery.student = { $in: students.map(s => s._id) };
+    // If no explicit student filter yet, but className/name were provided,
+    // perform the Student lookup and apply attQuery.student = {$in: [...]}
+    if (!appliedStudentFilter) {
+      const needStudentFilter = Boolean(className || name);
+      if (needStudentFilter) {
+        const stuQuery = {};
+        if (className) stuQuery.class = className;
+        if (name) stuQuery.name = { $regex: String(name), $options: 'i' };
+
+        const students = await Student.find(stuQuery, { _id: 1 });
+        // If no students match, return empty paginated response (don't return everyone)
+        if (!students || !students.length) {
+          return res.status(200).json({ total: 0, page: Number(page), limit: Number(limit), data: [] });
+        }
+        attQuery.student = { $in: students.map(s => s._id) };
+      }
     }
 
+    // ---------- Pagination and query execution ----------
     const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
     const list = await Attendance.find(attQuery)
       .populate({ path: 'student', model: 'Student', select: 'name class studentId' })
@@ -135,8 +180,8 @@ router.get('/attendance', async (req, res) => {
 
     return res.status(200).json({ total, page: Number(page), limit: Number(limit), data: list });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error retrieving attendance.', error });
+    console.error('Error retrieving attendance:', error);
+    return res.status(500).json({ message: 'Error retrieving attendance.', error });
   }
 });
 

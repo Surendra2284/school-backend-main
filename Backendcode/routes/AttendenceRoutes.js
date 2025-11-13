@@ -328,4 +328,75 @@ router.delete('/attendance/:id', async (req, res) => {
     res.status(500).json({ message: 'Error deleting attendance.', error });
   }
 });
+// GET /attendance/by-user?username=teacher1&page=1&limit=50&dateFrom=2025-11-01&dateTo=2025-11-13&status=Present
+router.get('/attendance/by-user', async (req, res) => {
+  try {
+    const { username, status, dateFrom, dateTo, page = 1, limit = 50 } = req.query;
+
+    if (!username || !String(username).trim()) {
+      return res.status(400).json({ message: 'username query parameter is required.' });
+    }
+
+    // helper: escape regex chars in username
+    const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // build query
+    const attQuery = {};
+    // case-insensitive exact match for username
+    attQuery.username = { $regex: `^${escapeRegex(username.trim())}$`, $options: 'i' };
+
+    // optional status filter (validate against Attendance.VALID_STATUS if available)
+    if (status) {
+      if (Array.isArray(Attendance.VALID_STATUS) && Attendance.VALID_STATUS.includes(String(status))) {
+        attQuery.status = String(status);
+      } else {
+        return res.status(400).json({ message: 'Invalid status value.' });
+      }
+    }
+
+    // optional date range filter
+    if (dateFrom || dateTo) {
+      const range = {};
+      if (dateFrom) {
+        const d = new Date(dateFrom);
+        if (Number.isNaN(d.getTime())) return res.status(400).json({ message: 'Invalid dateFrom.' });
+        range.$gte = d;
+      }
+      if (dateTo) {
+        const d = new Date(dateTo);
+        if (Number.isNaN(d.getTime())) return res.status(400).json({ message: 'Invalid dateTo.' });
+        // treat dateTo as inclusive end of day
+        d.setHours(23, 59, 59, 999);
+        range.$lt = new Date(d.getTime() + 1); // or use $lte with end of day
+      }
+      attQuery.date = range;
+    }
+
+    // pagination math
+    const p = Math.max(1, Number(page));
+    const lim = Math.max(1, Number(limit));
+    const skip = (p - 1) * lim;
+
+    // run query, populate student basic fields
+    const [list, total] = await Promise.all([
+      Attendance.find(attQuery)
+        .populate({ path: 'student', model: 'Student', select: 'name class studentId' })
+        .sort({ date: -1, _id: -1 })
+        .skip(skip)
+        .limit(lim),
+      Attendance.countDocuments(attQuery)
+    ]);
+
+    return res.status(200).json({
+      total,
+      page: p,
+      limit: lim,
+      data: list
+    });
+  } catch (err) {
+    console.error('Error in /attendance/by-user:', err);
+    return res.status(500).json({ message: 'Error retrieving attendance.', error: err.message });
+  }
+});
+
 module.exports = router;

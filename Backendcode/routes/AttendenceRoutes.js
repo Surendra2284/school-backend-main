@@ -1,8 +1,12 @@
 // routes/attendance.js
+
+router.use((req, res, next) => {
+  console.log('[attendance router] ', req.method, req.originalUrl, req.query, 'headers:', { origin: req.headers.origin, host: req.headers.host });
+  next();
+});
 const express = require('express');
 const mongoose = require('mongoose');
 const router = express.Router();
-
 const Attendance = require('../models/Attendance');
 const { VALID_STATUS } = require('../models/Attendance'); // exported above
 const Student = require('../models/Student');

@@ -433,7 +433,7 @@ router.get('/attendance/by-user', async (req, res) => {
   
 });
 
-router.get('/attendance/student-by-name', async (req, res) => {
+router.get('/student-by-name', async (req, res) => {
   try {
     const nameRaw = req.query.name;
     const weeksRaw = req.query.weeks;

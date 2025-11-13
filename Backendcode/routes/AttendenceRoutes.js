@@ -15,7 +15,9 @@ const toDayRange = (dateInput) => {
   const end = new Date(start); end.setUTCDate(start.getUTCDate() + 1);
   return { start, end };
 };
-
+function escapeRegex(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 /** -------------------------
  * CREATE / UPSERT (single or bulk)
  * - idempotent by (student, date) unique index
@@ -95,9 +97,6 @@ router.post('/attendance', async (req, res) => {
  * ------------------------- */
 // GET /attendance
 // Put this where your other routes are defined
-const mongoose = require('mongoose');
-const Attendance = require('../models/Attendance');
-const Student = require('../models/Student');
 
 router.get('/attendance', async (req, res) => {
   try {
@@ -422,14 +421,71 @@ router.get('/by-user', async (req, res) => {
       totalPages,
       data: list
     });
-  } catch (err) {
+  } 
+  catch (err) {
     // log full error server-side
     console.error('Error in /attendance/by-user:', err);
 
     // Don't leak internals to client in production
     return res.status(500).json({ message: 'Error retrieving attendance.' });
   }
+  
+  
 });
 
+router.get('/student-by-name', async (req, res) => {
+  try {
+    const nameRaw = req.query.name;
+    const weeksRaw = req.query.weeks;
+    if (!nameRaw || !String(nameRaw).trim()) {
+      return res.status(400).json({ message: 'name query parameter is required.' });
+    }
+    const name = String(nameRaw).trim();
+
+    const weeks = Math.max(1, Math.min(52, parseInt(String(weeksRaw || '1'), 10) || 1)); // 1..52
+
+    // Find student by name (case-insensitive exact match). You can change to partial match if needed.
+    const student = await Student.findOne({ name: { $regex: `^${escapeRegex(name)}$`, $options: 'i' } }).lean();
+    if (!student) {
+      return res.status(404).json({ message: `Student not found for name: ${name}` });
+    }
+
+    // Compute current week's Monday (UTC)
+    const now = new Date();
+    // normalize to UTC midnight
+    const todayUtcMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    // day index where Monday=0 .. Sunday=6
+    const monIndex = (todayUtcMidnight.getUTCDay() + 6) % 7;
+    const thisWeekStart = new Date(todayUtcMidnight.getTime() - monIndex * 24 * 60 * 60 * 1000); // Monday 00:00 UTC
+    const weekMillis = 7 * 24 * 60 * 60 * 1000;
+
+    const weeksOut = [];
+
+    for (let i = 0; i < weeks; i++) {
+      const start = new Date(thisWeekStart.getTime() - i * weekMillis);
+      const end = new Date(start.getTime() + weekMillis - 1); // inclusive end
+      // Query attendance for this student in the range [start, end]
+      const records = await Attendance.find({
+        student: mongoose.Types.ObjectId(student._id),
+        date: { $gte: start, $lte: end }
+      })
+        .populate({ path: 'student', model: 'Student', select: 'name class studentId' })
+        .sort({ date: 1 })
+        .lean();
+
+      weeksOut.push({
+        weekStart: start.toISOString(),
+        weekEnd: end.toISOString(),
+        records
+      });
+    }
+
+    // Return weeks array ordered: current week first, then previous weeks
+    return res.status(200).json({ student, weeks: weeksOut });
+  } catch (err) {
+    console.error('Error in GET /attendance/student-by-name:', err);
+    return res.status(500).json({ message: 'Error retrieving student attendance.' });
+  }
+});
 
 module.exports = router;

@@ -329,74 +329,107 @@ router.delete('/attendance/:id', async (req, res) => {
   }
 });
 // GET /attendance/by-user?username=teacher1&page=1&limit=50&dateFrom=2025-11-01&dateTo=2025-11-13&status=Present
-router.get('/attendance/by-user', async (req, res) => {
-  try {
-    const { username, status, dateFrom, dateTo, page = 1, limit = 50 } = req.query;
+// Ensure you have these imports at top of file:
+// const express = require('express');
+// const mongoose = require('mongoose');
+// const Attendance = require('./models/Attendance');
+// const Student = require('./models/Student');
 
-    if (!username || !String(username).trim()) {
+router.get('/by-user', async (req, res) => {
+  try {
+    console.log('GET /attendance/by-user query ->', req.query);
+
+    const {
+      username: rawUsername,
+      status: rawStatus,
+      dateFrom: rawDateFrom,
+      dateTo: rawDateTo,
+      page: rawPage = '1',
+      limit: rawLimit = '50'
+    } = req.query;
+
+    if (!rawUsername || !String(rawUsername).trim()) {
       return res.status(400).json({ message: 'username query parameter is required.' });
     }
+    const username = String(rawUsername).trim();
 
-    // helper: escape regex chars in username
-    const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // parse & sanitize pagination
+    const page = Math.max(1, parseInt(String(rawPage), 10) || 1);
+    let limit = Math.max(1, parseInt(String(rawLimit), 10) || 50);
+    const MAX_LIMIT = 500;
+    if (limit > MAX_LIMIT) limit = MAX_LIMIT;
 
     // build query
     const attQuery = {};
-    // case-insensitive exact match for username
-    attQuery.username = { $regex: `^${escapeRegex(username.trim())}$`, $options: 'i' };
+    // case-insensitive exact match for username (escaped)
+    const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    attQuery.username = { $regex: `^${escapeRegex(username)}$`, $options: 'i' };
 
-    // optional status filter (validate against Attendance.VALID_STATUS if available)
-    if (status) {
-      if (Array.isArray(Attendance.VALID_STATUS) && Attendance.VALID_STATUS.includes(String(status))) {
-        attQuery.status = String(status);
-      } else {
-        return res.status(400).json({ message: 'Invalid status value.' });
+    // optional status filter
+    if (rawStatus != null && String(rawStatus).trim() !== '') {
+      const status = String(rawStatus).trim();
+      if (Array.isArray(Attendance.VALID_STATUS)) {
+        if (!Attendance.VALID_STATUS.includes(status)) {
+          return res.status(400).json({ message: 'Invalid status value.' });
+        }
       }
+      attQuery.status = status;
     }
 
-    // optional date range filter
-    if (dateFrom || dateTo) {
+    // optional dateFrom / dateTo range
+    if (rawDateFrom || rawDateTo) {
       const range = {};
-      if (dateFrom) {
-        const d = new Date(dateFrom);
-        if (Number.isNaN(d.getTime())) return res.status(400).json({ message: 'Invalid dateFrom.' });
-        range.$gte = d;
+      if (rawDateFrom) {
+        const dFrom = new Date(String(rawDateFrom));
+        if (Number.isNaN(dFrom.getTime())) {
+          return res.status(400).json({ message: 'Invalid dateFrom.' });
+        }
+        range.$gte = dFrom;
       }
-      if (dateTo) {
-        const d = new Date(dateTo);
-        if (Number.isNaN(d.getTime())) return res.status(400).json({ message: 'Invalid dateTo.' });
-        // treat dateTo as inclusive end of day
-        d.setHours(23, 59, 59, 999);
-        range.$lt = new Date(d.getTime() + 1); // or use $lte with end of day
+      if (rawDateTo) {
+        const dTo = new Date(String(rawDateTo));
+        if (Number.isNaN(dTo.getTime())) {
+          return res.status(400).json({ message: 'Invalid dateTo.' });
+        }
+        // set end-of-day then use $lte for inclusive filter
+        dTo.setHours(23, 59, 59, 999);
+        range.$lte = dTo;
       }
       attQuery.date = range;
     }
 
-    // pagination math
-    const p = Math.max(1, Number(page));
-    const lim = Math.max(1, Number(limit));
-    const skip = (p - 1) * lim;
+    // debug log final query (avoid logging PII in production)
+    console.debug('Attendance query object ->', JSON.stringify(attQuery));
 
-    // run query, populate student basic fields
+    const skip = (page - 1) * limit;
+
     const [list, total] = await Promise.all([
       Attendance.find(attQuery)
         .populate({ path: 'student', model: 'Student', select: 'name class studentId' })
         .sort({ date: -1, _id: -1 })
         .skip(skip)
-        .limit(lim),
+        .limit(limit)
+        .lean(), // use lean() for performance if you don't need mongoose docs
       Attendance.countDocuments(attQuery)
     ]);
 
+    const totalPages = Math.ceil(total / limit);
+
     return res.status(200).json({
       total,
-      page: p,
-      limit: lim,
+      page,
+      limit,
+      totalPages,
       data: list
     });
   } catch (err) {
+    // log full error server-side
     console.error('Error in /attendance/by-user:', err);
-    return res.status(500).json({ message: 'Error retrieving attendance.', error: err.message });
+
+    // Don't leak internals to client in production
+    return res.status(500).json({ message: 'Error retrieving attendance.' });
   }
 });
+
 
 module.exports = router;

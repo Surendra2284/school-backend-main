@@ -334,7 +334,7 @@ router.delete('/attendance/:id', async (req, res) => {
 // const Attendance = require('./models/Attendance');
 // const Student = require('./models/Student');
 
-router.get('/by-user', async (req, res) => {
+router.get('/attendance/by-user', async (req, res) => {
   try {
     console.log('GET /attendance/by-user query ->', req.query);
 
@@ -433,7 +433,7 @@ router.get('/by-user', async (req, res) => {
   
 });
 
-router.get('/student-by-name', async (req, res) => {
+router.get('/attendance/student-by-name', async (req, res) => {
   try {
     const nameRaw = req.query.name;
     const weeksRaw = req.query.weeks;

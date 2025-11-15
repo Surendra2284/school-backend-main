@@ -13,12 +13,12 @@ dotenv.config();
 const app = express();
 
 // Routes Import
-const photoRoutes = require('./routes/photoRoutes');
-const teacherRoutes = require('./routes/teacherRoutes');
-const noticeRoutes = require('./routes/NoticeRoutes');
-const attendanceRoutes = require('./routes/AttendenceRoutes');
-const studentRoutes = require('./routes/studentRoutes');
-const UserModel = require('./routes/userRoutes'); // User model for authentication
+const photoRoutes = require('./routesold/photoRoutes');
+const teacherRoutes = require('./routesold/teacherRoutes');
+const noticeRoutes = require('./routesold/NoticeRoutes');
+const attendanceRoutes = require('./routesold/AttendenceRoutes');
+const studentRoutes = require('./routesold/studentRoutes');
+const UserModel = require('./routesold/userRoutes'); // User model for authentication
 
 // Active Sessions Management
 let activeSessions = {}; // In-memory session tracking

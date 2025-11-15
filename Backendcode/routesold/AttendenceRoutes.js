@@ -321,7 +321,7 @@ router.delete('/attendance/:id', async (req, res) => {
  * GET by username (teacher) – still works, joins student by studentId if needed
  * ------------------------- */
 // GET /attendance/by-user
-router.get('/attendance/by-user', async (req, res) => {
+router.get('/attendance/ByUserName', async (req, res) => {
   try {
     console.log('GET /attendance/by-user query ->', req.query);
 
@@ -415,7 +415,7 @@ router.get('/attendance/by-user', async (req, res) => {
  * GET by student name – uses Student to find studentId, then attendance by studentId
  * ------------------------- */
 // GET /student-by-name?name=Ishaan%20kushwaha&weeks=1
-router.get('/student-by-name', async (req, res) => {
+router.get('/ByStudentName', async (req, res) => {
   try {
     const nameRaw = req.query.name;
     const weeksRaw = req.query.weeks;

@@ -4,7 +4,9 @@ const mongoose = require('mongoose');
 const VALID_STATUS = ['Present', 'Absent', 'Leave'];
 
 const attendanceSchema = new mongoose.Schema({
-  student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true, index: true },
+  // ✅ numeric school ID only
+  studentId: { type: Number, required: true, index: true },
+
   className: { type: String, required: true, index: true },
   teacher: { type: String, required: true },
   username: { type: String, required: true, index: true },
@@ -21,8 +23,12 @@ const attendanceSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
-// Ensure one record per (student, date)
-attendanceSchema.index({ student: 1, date: 1 }, { unique: true });
+// Ensure one record per (studentId, date)
+attendanceSchema.index({ studentId: 1, date: 1 }, { unique: true });
 
-module.exports = mongoose.model('Attendance', attendanceSchema);
+const Attendance = mongoose.model('Attendance', attendanceSchema);
+
+// keep VALID_STATUS available like before
+Attendance.VALID_STATUS = VALID_STATUS;
+module.exports = Attendance;
 module.exports.VALID_STATUS = VALID_STATUS;

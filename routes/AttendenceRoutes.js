@@ -179,18 +179,14 @@ router.get('/attendance', async (req, res) => {
     const total = await Attendance.countDocuments(attQuery);
 
     // join student info by studentId (for display – no student ObjectId in Attendance)
-    const ids = [...new Set(list.map(r => r.studentId).filter(n => !Number.isNaN(n)))];
-    const stuDocs = ids.length
-      ? await Student.find({ studentId: { $in: ids } }, { studentId: 1, name: 1, class: 1 }).lean()
-      : [];
-    const stuMap = new Map(stuDocs.map(s => [s.studentId, s]));
+ // NO join, just return plain attendance docs with studentId only
+return res.status(200).json({
+  total,
+  page: Number(page),
+  limit: Number(limit),
+  data: list
+});
 
-    const data = list.map(rec => ({
-      ...rec,
-      student: stuMap.get(rec.studentId) || null // optional: student object only in response
-    }));
-
-    return res.status(200).json({ total, page: Number(page), limit: Number(limit), data });
   } catch (error) {
     console.error('Error retrieving attendance:', error);
     return res.status(500).json({ message: 'Error retrieving attendance.', error });

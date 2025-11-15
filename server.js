@@ -10,7 +10,7 @@ const MongoStore = require('connect-mongo');
 
 dotenv.config();
 const app = express();
-
+ const StudentProgressRoutes = require('./routes/StudentProgressRoutes');
 // --- Import Routes ---
 const photoRoutes = require('./routes/photoRoutes');
 const teacherRoutes = require('./routes/teacherRoutes');
@@ -90,7 +90,7 @@ app.use('/attendance', attendanceRoutes);
 app.use('/students', studentRoutes);
 app.use('/teachers', teacherRoutes);
 app.use('/users', userRoutes);
-
+app.use('/StudentProgress', StudentProgressRoutes);
 /** --- Middleware: Inactive Session Check --- */
 function checkInactiveSession(req, res, next) {
   const username = req.body.username || req.query.username || req.session.username;

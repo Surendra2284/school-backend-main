@@ -66,7 +66,7 @@ router.delete('/:id', async (req, res) => {
 });
 router.get('/username/:username', async (req, res) => {
   try {
-    const teacher = await Teacher.findOne({ name: req.params.username }); // ✅ changed from username → name
+    const teacher = await Teacher.findOne({ name: req.params.username });
 
     if (!teacher) {
       return res.status(404).json({ message: 'Teacher not found' });
@@ -77,7 +77,7 @@ router.get('/username/:username', async (req, res) => {
       teacherid: teacher.teacherid || teacher._id.toString(),
     });
   } catch (error) {
-    console.error('Error fetching teacher by name:', error);
+    console.error('Error fetching teacher by username:', error);
     res.status(500).json({ message: 'Failed to fetch teacher' });
   }
 });

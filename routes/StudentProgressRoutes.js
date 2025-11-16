@@ -1,4 +1,3 @@
-// routes/studentProgress.js
 const express = require('express');
 const router = express.Router();
 
@@ -8,29 +7,12 @@ const Student = require('../models/Student');
 // Helper: normalize date to YYYY-MM-DD
 function normalizeDate(str) {
   if (!str) return null;
-  // Expecting "YYYY-MM-DD" from frontend
   return String(str).slice(0, 10);
 }
 
-/**
- * ADD/UPSERT SINGLE PROGRESS
- * POST /student-progress
- *
- * Body:
- *  {
- *    studentId: number,
- *    className?: string,
- *    section?: string,
- *    subject: string,
- *    date: "YYYY-MM-DD",
- *    homework: string,
- *    teacher: string,
- *    username: string,
- *    progressNote?: string,
- *    status?: "Not Started" | "In Progress" | "Completed" | "Needs Attention",
- *    score?: number
- *  }
- */
+/* ===========================================================
+   POST /student-progress   (UPSERT SINGLE)
+   =========================================================== */
 router.post('/', async (req, res) => {
   try {
     const {
@@ -45,22 +27,16 @@ router.post('/', async (req, res) => {
       progressNote,
       status,
       score,
+      studentRemark,
+      studentRemarkDate
     } = req.body;
 
-    if (
-      !studentId ||
-      !subject ||
-      !date ||
-      !homework ||
-      !teacher ||
-      !username
-    ) {
+    if (!studentId || !subject || !date || !homework || !teacher || !username) {
       return res.status(400).json({ message: 'Missing required fields.' });
     }
 
     const normDate = normalizeDate(date);
 
-    // find student by studentId
     const student = await Student.findOne({ studentId })
       .select('_id class section')
       .lean();
@@ -69,15 +45,10 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ message: 'Student not found.' });
     }
 
-    const finalStatus =
-      status && typeof status === 'string' ? status : 'Not Started';
+    const finalStatus = typeof status === 'string' ? status : 'Not Started';
 
     const doc = await StudentProgress.findOneAndUpdate(
-      {
-        studentId,
-        date: normDate,
-        subject,
-      },
+      { studentId, date: normDate, subject },
       {
         $set: {
           student: student._id,
@@ -92,25 +63,26 @@ router.post('/', async (req, res) => {
           progressNote: progressNote || '',
           status: finalStatus,
           score: typeof score === 'number' ? score : undefined,
+
+          // ⭐ NEW FIELDS
+          studentRemark: studentRemark || '',
+          studentRemarkDate: studentRemarkDate || null
         },
       },
       { new: true, upsert: true }
     );
 
-    res.json({
-      message: 'Student progress saved/updated successfully.',
-      data: doc,
-    });
+    res.json({ message: 'Student progress saved/updated successfully.', data: doc });
+
   } catch (err) {
     console.error('Error in POST /student-progress:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
-/**
- * BULK UPSERT
- * POST /student-progress/bulk
- */
+/* ===========================================================
+   POST /student-progress/bulk  (BULK UPSERT)
+   =========================================================== */
 router.post('/bulk', async (req, res) => {
   try {
     const {
@@ -140,20 +112,16 @@ router.post('/bulk', async (req, res) => {
       .lean();
 
     const studentMap = new Map();
-    students.forEach((s) => {
-      studentMap.set(s.studentId, s);
-    });
+    students.forEach((s) => studentMap.set(s.studentId, s));
 
     const ops = [];
 
     entries.forEach((entry) => {
       const s = studentMap.get(entry.studentId);
-      if (!s) return; // skip if not found
+      if (!s) return;
 
-      const status =
-        entry.status && typeof entry.status === 'string'
-          ? entry.status
-          : 'Not Started';
+      const finalStatus =
+        typeof entry.status === 'string' ? entry.status : 'Not Started';
 
       ops.push({
         updateOne: {
@@ -174,9 +142,12 @@ router.post('/bulk', async (req, res) => {
               date: normDate,
               homework,
               progressNote: entry.progressNote || '',
-              status,
-              score:
-                typeof entry.score === 'number' ? entry.score : undefined,
+              status: finalStatus,
+              score: typeof entry.score === 'number' ? entry.score : undefined,
+
+              // ⭐ NEW REMARK FIELDS FOR BULK
+              studentRemark: entry.studentRemark || '',
+              studentRemarkDate: entry.studentRemarkDate || null
             },
           },
           upsert: true,
@@ -190,20 +161,20 @@ router.post('/bulk', async (req, res) => {
 
     const result = await StudentProgress.bulkWrite(ops, { ordered: false });
 
-    return res.json({
+    res.json({
       message: 'Student progress saved/updated successfully.',
       result,
     });
+
   } catch (err) {
     console.error('Error in /student-progress/bulk:', err);
-    return res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
-/**
- * GET /student-progress/class
- * Query: className, date?, subject?
- */
+/* ===========================================================
+   GET /student-progress/class
+   =========================================================== */
 router.get('/class', async (req, res) => {
   try {
     const { className, date, subject } = req.query;
@@ -223,24 +194,26 @@ router.get('/class', async (req, res) => {
       .lean();
 
     res.json(list);
+
   } catch (err) {
     console.error('Error in GET /student-progress/class:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
-/**
- * GET /student-progress/student/:studentId
- * Query: fromDate?, toDate?
- */
+/* ===========================================================
+   GET /student-progress/student/:studentId
+   =========================================================== */
 router.get('/student/:studentId', async (req, res) => {
   try {
     const studentId = Number(req.params.studentId);
+
     if (!studentId) {
       return res.status(400).json({ message: 'Invalid studentId.' });
     }
 
     const { fromDate, toDate } = req.query;
+
     const filter = { studentId };
 
     if (fromDate || toDate) {
@@ -254,24 +227,26 @@ router.get('/student/:studentId', async (req, res) => {
       .lean();
 
     res.json(list);
+
   } catch (err) {
     console.error('Error in GET /student-progress/student/:studentId:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
-/**
- * PUT /student-progress/:id
- * Update single progress record
- */
+/* ===========================================================
+   PUT /student-progress/:id
+   =========================================================== */
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
     const payload = { ...req.body };
-    if (payload.date) {
-      payload.date = normalizeDate(payload.date);
-    }
+
+    if (payload.date) payload.date = normalizeDate(payload.date);
+
+    if (!payload.studentRemark) payload.studentRemark = '';
+    if (!payload.studentRemarkDate) payload.studentRemarkDate = null;
 
     const updated = await StudentProgress.findByIdAndUpdate(id, payload, {
       new: true,
@@ -282,25 +257,28 @@ router.put('/:id', async (req, res) => {
     }
 
     res.json(updated);
+
   } catch (err) {
     console.error('Error in PUT /student-progress/:id:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
-/**
- * DELETE /student-progress/:id
- */
+/* ===========================================================
+   DELETE /student-progress/:id
+   =========================================================== */
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
     const deleted = await StudentProgress.findByIdAndDelete(id);
+
     if (!deleted) {
       return res.status(404).json({ message: 'Record not found.' });
     }
 
     res.json({ message: 'Deleted successfully.' });
+
   } catch (err) {
     console.error('Error in DELETE /student-progress/:id:', err);
     res.status(500).json({ message: 'Server error', error: err.message });

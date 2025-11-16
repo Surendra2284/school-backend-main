@@ -73,7 +73,8 @@ const studentProgressSchema = new mongoose.Schema(
       enum: VALID_STATUS,
       default: 'Not Started',
     },
-
+    studentRemark: { type: String },
+    studentRemarkDate: { type: String }, // 'YYYY-MM-DD'
     score: {
       type: Number,
     },

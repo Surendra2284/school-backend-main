@@ -177,6 +177,14 @@ app.post('/update-activity', (req, res) => {
     res.status(400).json({ message: 'Session not found' });
   }
 });
+app.post('/update-activity', checkInactiveSession, (req, res) => {
+  const { username } = req.body;
+  if (username && activeSessions[username]) {
+    activeSessions[username].lastActive = Date.now();
+    return res.status(200).json({ message: 'Session updated' });
+  }
+  return res.status(401).json({ message: 'Session expired or not found' });
+});
 
 // Logout
 app.post('/logout', (req, res) => {

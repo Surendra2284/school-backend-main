@@ -10,15 +10,16 @@ const MongoStore = require('connect-mongo');
 
 dotenv.config();
 const app = express();
- const StudentProgressRoutes = require('./routes/StudentProgressRoutes');
+
 // --- Import Routes ---
+const UserModel = require('./models/User');
+const userRoutes = require('./routes/userRoutes');
 const photoRoutes = require('./routes/photoRoutes');
 const teacherRoutes = require('./routes/teacherRoutes');
 const noticeRoutes = require('./routes/NoticeRoutes');
 const attendanceRoutes = require('./routes/AttendenceRoutes');
 const studentRoutes = require('./routes/studentRoutes');
-const UserModel = require('./models/User');
-const userRoutes = require('./routes/userRoutes');
+const StudentProgressRoutes = require('./routes/StudentProgressRoutes');
 // --- Active Sessions In-Memory ---
 let activeSessions = {};
 

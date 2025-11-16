@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 
-const StudentProgress = require('../models/StudentHomework');
+const StudentProgress = require('../models/StudentProgress');
 const Student = require('../models/Student');
 
 // Helper: normalize date to YYYY-MM-DD

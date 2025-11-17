@@ -168,15 +168,7 @@ app.post('/login', checkInactiveSession, async (req, res) => {
 });
 
 // Update activity
-app.post('/update-activity', (req, res) => {
-  const { username } = req.body;
-  if (username && activeSessions[username]) {
-    activeSessions[username].lastActive = Date.now();
-    res.status(200).json({ message: 'Session updated' });
-  } else {
-    res.status(400).json({ message: 'Session not found' });
-  }
-});
+
 app.post('/update-activity', checkInactiveSession, (req, res) => {
   const { username } = req.body;
   if (username && activeSessions[username]) {

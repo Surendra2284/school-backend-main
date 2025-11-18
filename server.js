@@ -24,20 +24,42 @@ const StudentProgressRoutes = require('./routes/StudentProgressRoutes');
 let activeSessions = {};
 
 /** --- Middleware --- */
+const allowedOrigins = [
+  'http://localhost:4200',                      // Angular web
+  'https://school-frontend-6x4m.onrender.com', // Deployed frontend
+  'https://backend1-m4j8.onrender.com',        // Backend
+  'capacitor://localhost',                     // Android/iOS mobile app
+  'ionic://localhost',                         // Ionic
+  'http://localhost',                          // Mobile WebView
+  'http://10.0.2.2',                           // Android emulator -> localhost
+];
+
 app.use(
   cors({
-    origin: ['http://localhost:4200','https://backend1-m4j8.onrender.com','https://school-frontend-6x4m.onrender.com'], // change later if Angular is deployed
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // mobile apps often send no origin
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+
+      console.log('❌ CORS blocked:', origin);
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
+app.use((req, res, next) => {
+  console.log("Incoming Origin:", req.headers.origin);
+  console.log("User-Agent:", req.headers["user-agent"]);
+  next();
+});
+
 
 // Body parsing
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Request logger
-app.use((req, res, next) => {
+app.use((req, next) => {
   console.log(`➡️ ${req.method} ${req.path}`);
   next();
 });

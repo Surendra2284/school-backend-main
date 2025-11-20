@@ -28,10 +28,10 @@ const allowedOrigins = [
   'http://localhost:4200',                      // Angular web
   'https://school-frontend-6x4m.onrender.com', // Deployed frontend
   'https://backend1-m4j8.onrender.com',        // Backend
-  'capacitor://localhost',                     // Android/iOS mobile app
-  'ionic://localhost',                         // Ionic
-  'http://localhost',                          // Mobile WebView
-  'http://10.0.2.2',                           // Android emulator -> localhost
+  'capacitor://localhost',
+      'http://localhost',
+      'https://localhost',
+      'http://localhost:8080'                          // Android emulator -> localhost
 ];
 
 app.use(

@@ -50,55 +50,66 @@ router.post('/bulk-notice', upload.single('file'), async (req, res) => {
 
         for (const row of rows) {
             const studentId = row["StudentID"];
-            const excelName = row["Name"]?.trim() || "";
+            const excelName = (row["Name"] || "").trim();
             const newNotice = row["Notice"];
             const excelAttendance = row["Attendance"];
+            const replaceMode = (row["ReplaceMode"] || "").toString().toLowerCase() === "yes";
 
             if (!studentId || !excelName) {
                 results.errors.push({ row, error: "Missing StudentID or Name" });
                 continue;
             }
 
-            // Find student by ID
+            // Find student
             const student = await Student.findOne({ studentId });
             if (!student) {
                 results.notFound.push(studentId);
                 continue;
             }
 
-            // Strict Name Check
-            const dbName = student.name?.trim() || "";
+            // Name validation
+            const dbName = (student.name || "").trim();
             if (dbName.toLowerCase() !== excelName.toLowerCase()) {
-                results.nameMismatch.push({
-                    studentId,
-                    excelName,
-                    dbName
-                });
+                results.nameMismatch.push({ studentId, excelName, dbName });
                 continue;
             }
 
-            // ---- UPDATE NOTICE ----
-            if (newNotice && newNotice.trim() !== "") {
-                if (student.Notice && student.Notice.trim() !== "") {
-                    student.Notice += " | " + newNotice;
-                } else {
-                    student.Notice = newNotice;
+            // --------------- NEW REPLACE MODE LOGIC -----------------
+            if (replaceMode) {
+                // Replace Notice
+                student.Notice = newNotice ? newNotice : "";
+
+                // Replace Attendance
+                if (!isNaN(Number(excelAttendance))) {
+                    student.attendance = Number(excelAttendance);
                 }
-            }
 
-            // ---- UPDATE ATTENDANCE ----
-            if (excelAttendance !== undefined && excelAttendance !== null && excelAttendance !== "") {
-                const addAttendance = Number(excelAttendance);
+            } else {
+                // --------------- OLD APPEND MODE LOGIC -----------------
 
-                if (!isNaN(addAttendance)) {
-                    if (!student.attendance) student.attendance = 0;
-                    student.attendance += addAttendance;
-                } else {
-                    results.errors.push({
-                        studentId,
-                        error: "Invalid attendance value",
-                        value: excelAttendance
-                    });
+                // --- Append Notice ---
+                if (newNotice && newNotice.trim() !== "") {
+                    if (student.Notice && student.Notice.trim() !== "") {
+                        student.Notice = student.Notice + " | " + newNotice;
+                    } else {
+                        student.Notice = newNotice;
+                    }
+                }
+
+                // --- Add attendance ---
+                if (excelAttendance !== undefined && excelAttendance !== null && excelAttendance !== "") {
+                    const addAttendance = Number(excelAttendance);
+
+                    if (!isNaN(addAttendance)) {
+                        if (!student.attendance) student.attendance = 0;
+                        student.attendance += addAttendance;
+                    } else {
+                        results.errors.push({
+                            studentId,
+                            error: "Invalid attendance value",
+                            value: excelAttendance
+                        });
+                    }
                 }
             }
 
@@ -113,6 +124,7 @@ router.post('/bulk-notice', upload.single('file'), async (req, res) => {
         res.status(500).json({ error: "Server error", details: error });
     }
 });
+
 // Get all
 router.get('/', async (req, res) => {
   try {

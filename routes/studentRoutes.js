@@ -1,7 +1,10 @@
 const express = require('express');
 const Student = require('../models/Student');
 const router = express.Router();
+const XLSX = require('xlsx');
+const multer = require('multer');
 
+const upload = multer({ storage: multer.memoryStorage() });
 const validatePayload = (requiredFields, payload) => {
   for (const field of requiredFields) {
     if (!payload[field] || payload[field].toString().trim() === '') {
@@ -27,6 +30,89 @@ router.post('/add', async (req, res) => {
   }
 });
 
+
+router.post('/bulk-notice', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: "Excel file required" });
+        }
+
+        const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+
+        let results = {
+            updated: 0,
+            notFound: [],
+            nameMismatch: [],
+            errors: []
+        };
+
+        for (const row of rows) {
+            const studentId = row["StudentID"];
+            const excelName = row["Name"]?.trim() || "";
+            const newNotice = row["Notice"];
+            const excelAttendance = row["Attendance"];
+
+            if (!studentId || !excelName) {
+                results.errors.push({ row, error: "Missing StudentID or Name" });
+                continue;
+            }
+
+            // Find student by ID
+            const student = await Student.findOne({ studentId });
+            if (!student) {
+                results.notFound.push(studentId);
+                continue;
+            }
+
+            // Strict Name Check
+            const dbName = student.name?.trim() || "";
+            if (dbName.toLowerCase() !== excelName.toLowerCase()) {
+                results.nameMismatch.push({
+                    studentId,
+                    excelName,
+                    dbName
+                });
+                continue;
+            }
+
+            // ---- UPDATE NOTICE ----
+            if (newNotice && newNotice.trim() !== "") {
+                if (student.Notice && student.Notice.trim() !== "") {
+                    student.Notice += " | " + newNotice;
+                } else {
+                    student.Notice = newNotice;
+                }
+            }
+
+            // ---- UPDATE ATTENDANCE ----
+            if (excelAttendance !== undefined && excelAttendance !== null && excelAttendance !== "") {
+                const addAttendance = Number(excelAttendance);
+
+                if (!isNaN(addAttendance)) {
+                    if (!student.attendance) student.attendance = 0;
+                    student.attendance += addAttendance;
+                } else {
+                    results.errors.push({
+                        studentId,
+                        error: "Invalid attendance value",
+                        value: excelAttendance
+                    });
+                }
+            }
+
+            await student.save();
+            results.updated++;
+        }
+
+        res.json(results);
+
+    } catch (error) {
+        console.error("Bulk Update Error:", error);
+        res.status(500).json({ error: "Server error", details: error });
+    }
+});
 // Get all
 router.get('/', async (req, res) => {
   try {

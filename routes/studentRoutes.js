@@ -129,33 +129,18 @@ router.post('/bulk-notice', upload.single('file'), async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const filters = { ...req.query };
-
     const limit = parseInt(req.query.limit) || 10;
     const skip = parseInt(req.query.skip) || 0;
-
     delete filters.limit;
     delete filters.skip;
-
-    // Count total matching documents
-    const total = await Student.countDocuments(filters);
-
-    // Get only the selected page
-    const students = await Student.find(filters)
-      .limit(limit)
-      .skip(skip)
-      .sort({ studentId: 1 });
-
-    res.status(200).json({
-      total,
-      students
-    });
-
+const total = await Student.countDocuments(filters);
+    const students = await Student.find(filters).limit(limit).skip(skip);
+    res.status(200).json(students);
   } catch (error) {
     console.error('Error fetching students:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
-
 
 // Get by ID
 router.get('/:id', async (req, res) => {

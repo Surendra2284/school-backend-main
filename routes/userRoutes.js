@@ -57,7 +57,7 @@ router.post('/bulk', async (req, res) => {
             u.password = await bcrypt.hash(u.password, 10);
           } else {
             // Password unchanged → do not overwrite
-            delete u.password;
+            u.password = await bcrypt.hash(u.password, 10);
           }
 
           await User.updateOne(
@@ -128,13 +128,27 @@ router.put('/approve-user/:id', async (req, res) => {
 // Update user by ID
 router.put('/:id', async (req, res) => {
   try {
-    const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updateData = { ...req.body };
+
+    // If password is provided → hash before saving
+    if (updateData.password) {
+      updateData.password = await bcrypt.hash(updateData.password, 10);
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateData },
+      { new: true }
+    );
+
     if (!updatedUser) return res.status(404).json({ message: 'User not found' });
+
     res.json(updatedUser);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating user', error: error.message });
+    res.status(500).json({ message: "Error updating user", error: error.message });
   }
 });
+
 
 // Delete user by ID
 router.delete('/:id', async (req, res) => {

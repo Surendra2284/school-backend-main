@@ -36,33 +36,43 @@ router.post('/bulk', async (req, res) => {
 
     for (const u of users) {
       try {
+        // Validate required fields
         if (!u.username || !u.password || !u.role) {
           skipped++;
           continue;
         }
 
-        // Clean username (remove spaces)
+        // Remove unwanted spaces
         u.username = u.username.trim();
 
+        // Find existing user
         const existing = await User.findOne({ username: u.username });
 
         if (existing) {
-          // If password provided and different → hash again
-          if (u.password && !(await bcrypt.compare(u.password, existing.password))) {
+          // Compare plain password with hashed stored password
+          const passwordMatches = await bcrypt.compare(u.password, existing.password);
+
+          if (!passwordMatches) {
+            // New password → Hash again
             u.password = await bcrypt.hash(u.password, 10);
           } else {
-            delete u.password; // keep old hashed password
+            // Password unchanged → do not overwrite
+            delete u.password;
           }
 
-          await User.updateOne({ username: u.username }, { $set: u });
-          updated++;
+          await User.updateOne(
+            { username: u.username },
+            { $set: u }
+          );
 
+          updated++;
         } else {
-          // Hash password for new user
+          // NEW USER → hash password always
           u.password = await bcrypt.hash(u.password, 10);
 
           const newUser = new User(u);
           await newUser.save();
+
           inserted++;
         }
 

@@ -36,21 +36,36 @@ router.post('/bulk', async (req, res) => {
 
     for (const u of users) {
       try {
-        if (!u.username || !u.email) {
+        if (!u.username || !u.password || !u.role) {
           skipped++;
           continue;
         }
 
+        // Clean username (remove spaces)
+        u.username = u.username.trim();
+
         const existing = await User.findOne({ username: u.username });
 
         if (existing) {
-          await User.updateOne({ username: u.username }, u);
+          // If password provided and different → hash again
+          if (u.password && !(await bcrypt.compare(u.password, existing.password))) {
+            u.password = await bcrypt.hash(u.password, 10);
+          } else {
+            delete u.password; // keep old hashed password
+          }
+
+          await User.updateOne({ username: u.username }, { $set: u });
           updated++;
+
         } else {
+          // Hash password for new user
+          u.password = await bcrypt.hash(u.password, 10);
+
           const newUser = new User(u);
           await newUser.save();
           inserted++;
         }
+
       } catch (err) {
         errors.push({ user: u.username, error: err.message });
       }
@@ -62,6 +77,7 @@ router.post('/bulk', async (req, res) => {
     res.status(500).json({ message: "Bulk upload failed", error: error.message });
   }
 });
+
 
 // Get pending users (specific route before :id)
 router.get('/pending-users', async (req, res) => {

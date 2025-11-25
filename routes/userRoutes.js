@@ -22,6 +22,46 @@ router.post('/', async (req, res) => {
     res.status(500).json({ message: 'Error creating user', error: error.message });
   }
 });
+// Bulk create or update users
+router.post('/bulk', async (req, res) => {
+  try {
+    const users = req.body.users || [];
+
+    if (!Array.isArray(users) || users.length === 0) {
+      return res.status(400).json({ message: "No users provided" });
+    }
+
+    let inserted = 0, updated = 0, skipped = 0;
+    const errors = [];
+
+    for (const u of users) {
+      try {
+        if (!u.username || !u.email) {
+          skipped++;
+          continue;
+        }
+
+        const existing = await User.findOne({ username: u.username });
+
+        if (existing) {
+          await User.updateOne({ username: u.username }, u);
+          updated++;
+        } else {
+          const newUser = new User(u);
+          await newUser.save();
+          inserted++;
+        }
+      } catch (err) {
+        errors.push({ user: u.username, error: err.message });
+      }
+    }
+
+    res.json({ inserted, updated, skipped, errors });
+
+  } catch (error) {
+    res.status(500).json({ message: "Bulk upload failed", error: error.message });
+  }
+});
 
 // Get pending users (specific route before :id)
 router.get('/pending-users', async (req, res) => {

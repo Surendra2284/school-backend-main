@@ -141,6 +141,16 @@ const total = await Student.countDocuments(filters);
     res.status(500).json({ error: error.message });
   }
 });
+// GET unique class list
+router.get('/classes/list', async (req, res) => {
+  try {
+    const classes = await Student.distinct("class");
+    return res.json(classes.sort());
+  } catch (error) {
+    console.error("Error fetching class list:", error);
+    return res.status(500).json({ error: "Failed to load classes" });
+  }
+});
 
 // Get by ID
 router.get('/:id', async (req, res) => {

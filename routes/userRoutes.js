@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 
-// Get all users
+// -------------------------
+// GET ALL USERS
+// -------------------------
 router.get('/', async (req, res) => {
   try {
     const users = await User.find();
@@ -12,17 +15,26 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Register a new user
+// -------------------------
+// CREATE NEW USER (REGISTER)
+// -------------------------
 router.post('/', async (req, res) => {
   try {
-    const user = new User(req.body);
+    const body = { ...req.body };
+    body.password = await bcrypt.hash(body.password, 10);
+
+    const user = new User(body);
     const savedUser = await user.save();
+
     res.status(201).json(savedUser);
   } catch (error) {
     res.status(500).json({ message: 'Error creating user', error: error.message });
   }
 });
-// Bulk create or update users
+
+// -------------------------
+// BULK CREATE OR UPDATE USERS
+// -------------------------
 router.post('/bulk', async (req, res) => {
   try {
     const users = req.body.users || [];
@@ -36,28 +48,22 @@ router.post('/bulk', async (req, res) => {
 
     for (const u of users) {
       try {
-        // Validate required fields
         if (!u.username || !u.password || !u.role) {
           skipped++;
           continue;
         }
 
-        // Remove unwanted spaces
         u.username = u.username.trim();
 
-        // Find existing user
         const existing = await User.findOne({ username: u.username });
 
         if (existing) {
-          // Compare plain password with hashed stored password
           const passwordMatches = await bcrypt.compare(u.password, existing.password);
 
           if (!passwordMatches) {
-            // New password → Hash again
             u.password = await bcrypt.hash(u.password, 10);
           } else {
-            // Password unchanged → do not overwrite
-            u.password = await bcrypt.hash(u.password, 10);
+            delete u.password; // keep existing
           }
 
           await User.updateOne(
@@ -67,12 +73,8 @@ router.post('/bulk', async (req, res) => {
 
           updated++;
         } else {
-          // NEW USER → hash password always
           u.password = await bcrypt.hash(u.password, 10);
-
-          const newUser = new User(u);
-          await newUser.save();
-
+          await new User(u).save();
           inserted++;
         }
 
@@ -88,8 +90,9 @@ router.post('/bulk', async (req, res) => {
   }
 });
 
-
-// Get pending users (specific route before :id)
+// -------------------------
+// GET PENDING USERS
+// -------------------------
 router.get('/pending-users', async (req, res) => {
   try {
     const users = await User.find({ isApproved: false });
@@ -99,7 +102,9 @@ router.get('/pending-users', async (req, res) => {
   }
 });
 
-// Get users by approval status
+// -------------------------
+// GET USERS BY APPROVAL STATUS
+// -------------------------
 router.get('/isApproved/:status', async (req, res) => {
   try {
     const isApproved = req.params.status === 'true';
@@ -110,7 +115,9 @@ router.get('/isApproved/:status', async (req, res) => {
   }
 });
 
-// Approve user by ID
+// -------------------------
+// APPROVE USER
+// -------------------------
 router.put('/approve-user/:id', async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(
@@ -118,19 +125,22 @@ router.put('/approve-user/:id', async (req, res) => {
       { isApproved: true },
       { new: true }
     );
+
     if (!user) return res.status(404).json({ message: 'User not found' });
+
     res.json({ message: 'User approved successfully', user });
   } catch (error) {
     res.status(500).json({ message: 'Failed to approve user', error: error.message });
   }
 });
 
-// Update user by ID
+// -------------------------
+// UPDATE USER BY ID
+// -------------------------
 router.put('/:id', async (req, res) => {
   try {
     const updateData = { ...req.body };
 
-    // If password is provided → hash before saving
     if (updateData.password) {
       updateData.password = await bcrypt.hash(updateData.password, 10);
     }
@@ -144,27 +154,39 @@ router.put('/:id', async (req, res) => {
     if (!updatedUser) return res.status(404).json({ message: 'User not found' });
 
     res.json(updatedUser);
+
   } catch (error) {
     res.status(500).json({ message: "Error updating user", error: error.message });
   }
 });
-router.get('/:username', async (req, res) => {
+
+// -------------------------
+// GET USER BY USERNAME
+// -------------------------
+router.get('/by-username/:username', async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.username.trim() });
+
     if (!user) return res.status(404).json({ message: 'User not found' });
+
     res.json(user);
+
   } catch (error) {
     res.status(500).json({ message: 'Error fetching user', error: error.message });
   }
 });
 
-
-// Delete user by ID
+// -------------------------
+// DELETE USER BY ID
+// -------------------------
 router.delete('/:id', async (req, res) => {
   try {
     const deletedUser = await User.findByIdAndDelete(req.params.id);
+
     if (!deletedUser) return res.status(404).json({ message: 'User not found' });
+
     res.json({ message: 'User deleted successfully' });
+
   } catch (error) {
     res.status(500).json({ message: 'Error deleting user', error: error.message });
   }

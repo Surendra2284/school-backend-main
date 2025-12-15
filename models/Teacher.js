@@ -14,7 +14,7 @@ const teacherSchema = new mongoose.Schema({
   Notice: { type: String },
   Email: { type: String , required: true },
   attendance: { type: Number, required: true, min: 0, max: 100 }, // Attendance percentage
-  photo: { type: Buffer, required: true } ,
+  photo: { type: Buffer, required: false } ,
   classteacher : { type:String,required :true},
   subject : { type:String,required :true},
   experience:{type:Number,required :true}

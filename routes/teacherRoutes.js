@@ -32,8 +32,8 @@ router.post('/', async (req, res) => {
 // Update an existing teacher
 router.put('/:id', async (req, res) => {
   try {
-    const updatedTeacher = await Teacher.findOneAndUpdate(
-      { teacherid: req.params.id },
+   const updatedTeacher = await Teacher.findByIdAndUpdate(
+      req.params.id,
       req.body,
       { new: true }
     );
@@ -52,7 +52,7 @@ router.put('/:id', async (req, res) => {
 // Delete a teacher
 router.delete('/:id', async (req, res) => {
   try {
-    const teacher = await Teacher.findOneAndDelete({ teacherid: req.params.id });
+    const teacher = await Teacher.findOneAndDelete({ _id: req.params.id });
 
     if (!teacher) {
       return res.status(404).json({ error: 'Teacher not found' });

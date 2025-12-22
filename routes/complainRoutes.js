@@ -53,6 +53,7 @@ router.get('/by-username/:username', async (req, res) => {
 ================================*/
 router.get('/by-class/:class', async (req, res) => {
   const list = await Complain.find({ class: req.params.class });
+  
   res.json(list);
 });
 
@@ -72,5 +73,24 @@ router.get('/unresolved', async (req, res) => {
   const list = await Complain.find({ resolved: false });
   res.json(list);
 });
-
+router.delete('/:id', async (req, res) => {
+  try {
+    const deleted = await Complain.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Not found' });
+    res.json({ message: 'Complaint deleted', id: req.params.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+/* ===============================
+   DELETE ALL RESOLVED (optional)
+================================*/
+router.delete('/resolved/all', async (req, res) => {
+  try {
+    const result = await Complain.deleteMany({ resolved: true });
+    res.json({ message: 'Resolved complaints deleted', deletedCount: result.deletedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 module.exports = router;

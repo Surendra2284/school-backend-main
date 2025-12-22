@@ -90,8 +90,7 @@ app.use(
 /** --- MongoDB Connection --- */
 mongoose
   .connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
+    
     serverSelectionTimeoutMS: 5000,
   })
   .then(() => console.log('✅ Connected to MongoDB'))
@@ -118,6 +117,9 @@ app.use('/StudentProgress', StudentProgressRoutes);
 app.use('/api', teacherImportRouter);
 app.use('/complains', complain);
 app.use('/teachertask', teacherTaskRoutes);
+
+
+
 /** --- Middleware: Inactive Session Check --- */
 function checkInactiveSession(req, res, next) {
   const username = req.body.username || req.query.username || req.session.username;
@@ -152,6 +154,9 @@ app.post('/sign-up', async (req, res) => {
     res.status(201).json({ message: 'User created', result: savedUser });
   } catch (err) {
     console.error(err);
+    if (err.code === 11000) {
+      return res.status(400).json({ message: 'Username already exists' });
+    }
     res.status(500).json({ message: 'Error creating user', error: err.message });
   }
 });
@@ -233,10 +238,10 @@ app.use((req, res, next) => {
   console.log('Request headers:', req.headers);
   next();
 });
-module.exports = app;
+
 
 /** --- Start Server --- */
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });

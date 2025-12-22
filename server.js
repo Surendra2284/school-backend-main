@@ -1,7 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs'); // ✅ using bcryptjs (works on Render)
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -11,7 +11,7 @@ const MongoStore = require('connect-mongo');
 dotenv.config();
 const app = express();
 
-// --- Import Routes ---
+/** --- Models & Routes --- */
 const UserModel = require('./models/User');
 const userRoutes = require('./routes/userRoutes');
 const photoRoutes = require('./routes/photoRoutes');
@@ -21,26 +21,24 @@ const attendanceRoutes = require('./routes/AttendenceRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const StudentProgressRoutes = require('./routes/StudentProgressRoutes');
 const teacherImportRouter = require('./routes/teacherimport');
-const complain = require('./routes/complainRoutes');
+const complainRoutes = require('./routes/complainRoutes');
 const teacherTaskRoutes = require('./routes/teachertaskroutes');
-// --- Active Sessions In-Memory ---
-let activeSessions = {};
 
-/** --- Middleware --- */
+/** --- CORS --- */
 const allowedOrigins = [
-  'http://localhost:4200',                      // Angular web
-  'https://school-frontend-6x4m.onrender.com', // Deployed frontend
-  'https://backend1-m4j8.onrender.com',        // Backend
+  'http://localhost:4200',
+  'https://school-frontend-6x4m.onrender.com',
+  'https://backend1-m4j8.onrender.com',
   'capacitor://localhost',
-      'http://localhost',
-      'https://localhost',
-      'http://localhost:8080'                          // Android emulator -> localhost
+  'http://localhost',
+  'https://localhost',
+  'http://localhost:8080'
 ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // mobile apps often send no origin
+      if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
 
       console.log('❌ CORS blocked:', origin);
@@ -51,26 +49,23 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
-app.use((req, res, next) => {
-  console.log("Incoming Origin:", req.headers.origin);
-  console.log("User-Agent:", req.headers["user-agent"]);
-  next();
-});
 
-
-// Body parsing
-app.use(bodyParser.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-// Request logger
+// Simple request logger (single instance)
 app.use((req, res, next) => {
   console.log(`➡️ ${req.method} ${req.path}`);
+  console.log('Origin:', req.headers.origin || 'N/A');
+  console.log('User-Agent:', req.headers['user-agent'] || 'N/A');
   next();
 });
 
-// Handle OPTIONS (CORS preflight)
+// Handle OPTIONS preflight
 app.options('*', cors());
 
-// Session handling
+/** --- Body Parsing --- */
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+/** --- Sessions (Mongo-backed, Render‑friendly) --- */
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'default-session-secret',
@@ -79,34 +74,36 @@ app.use(
     store: MongoStore.create({
       mongoUrl: process.env.MONGODB_URI,
       collectionName: 'sessions',
-      ttl: 24 * 60 * 60, // 1 day
+      ttl: 24 * 60 * 60,
+      autoRemove: 'native',
     }),
     cookie: {
       maxAge: 1000 * 60 * 60 * 24,
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: 'lax',
     },
   })
 );
 
-/** --- MongoDB Connection --- */
+/** --- MongoDB Connection (Mongoose 7/8 friendly) --- */
 mongoose
   .connect(process.env.MONGODB_URI, {
-    
     serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+    maxPoolSize: 10,
+    bufferCommands: false,
   })
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch((err) => console.error('❌ MongoDB connection error:', err.message));
 
 /** --- Routes --- */
-// Root
+// Health/root
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to the backend server!' });
 });
-app.use((req, res, next) => {
-  console.log(`Incoming request: ${req.method} ${req.path}`);
-  console.log('Request headers:', req.headers);
-  next();
-});
 
+// API routes
 app.use('/photos', photoRoutes);
 app.use('/notices', noticeRoutes);
 app.use('/attendance', attendanceRoutes);
@@ -115,35 +112,16 @@ app.use('/teachers', teacherRoutes);
 app.use('/users', userRoutes);
 app.use('/StudentProgress', StudentProgressRoutes);
 app.use('/api', teacherImportRouter);
-app.use('/complains', complain);
+app.use('/complains', complainRoutes);
 app.use('/teachertask', teacherTaskRoutes);
 
-
-
-/** --- Middleware: Inactive Session Check --- */
-function checkInactiveSession(req, res, next) {
-  const username = req.body.username || req.query.username || req.session.username;
-
-  if (username && activeSessions[username]) {
-    const now = Date.now();
-    const lastActive = activeSessions[username].lastActive;
-    const timeout = 10 * 60 * 1000; // 10 min
-
-    if (now - lastActive > timeout) {
-      delete activeSessions[username];
-      req.session.destroy((err) => {
-        if (err) console.error('Error destroying session:', err);
-      });
-      console.log(`⚠️ User ${username} logged out due to inactivity.`);
-    }
-  }
-  next();
-}
 /** --- Auth Routes --- */
+
 // Sign-Up
 app.post('/sign-up', async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
     const user = new UserModel({
       username: req.body.username,
       password: hashedPassword,
@@ -162,7 +140,7 @@ app.post('/sign-up', async (req, res) => {
 });
 
 // Login
-app.post('/login', checkInactiveSession, async (req, res) => {
+app.post('/login', async (req, res) => {
   const { username, password, role } = req.body;
   const jwtSecret = process.env.JWT_SECRET;
 
@@ -175,11 +153,9 @@ app.post('/login', checkInactiveSession, async (req, res) => {
     if (!user) return res.status(401).json({ message: 'User not found' });
 
     if (user.role !== role) return res.status(403).json({ message: 'Unauthorized role' });
+
     if (!user.isApproved) {
       return res.status(403).json({ message: 'Your account is not approved by admin yet.' });
-    }
-    if (activeSessions[username] && activeSessions[username].sessionID !== req.sessionID) {
-      return res.status(403).json({ message: 'Already logged in elsewhere.' });
     }
 
     const match = await bcrypt.compare(password, user.password);
@@ -191,7 +167,8 @@ app.post('/login', checkInactiveSession, async (req, res) => {
       { expiresIn: '1h' }
     );
 
-    activeSessions[username] = { sessionID: req.sessionID, lastActive: Date.now() };
+    // store minimal user info in MongoDB-backed session
+    req.session.user = { username: user.username, role: user.role };
     res.status(200).json({ token, expiresIn: 3600 });
   } catch (err) {
     console.error('Login error:', err);
@@ -199,50 +176,39 @@ app.post('/login', checkInactiveSession, async (req, res) => {
   }
 });
 
-// Update activity
-
-app.post('/update-activity', checkInactiveSession, (req, res) => {
-  const { username } = req.body;
-  if (username && activeSessions[username]) {
-    activeSessions[username].lastActive = Date.now();
-    return res.status(200).json({ message: 'Session updated' });
-  }
-  return res.status(401).json({ message: 'Session expired or not found' });
-});
-
 // Logout
 app.post('/logout', (req, res) => {
-  const { username } = req.body;
-  if (activeSessions[username]) {
-    delete activeSessions[username];
-    req.session.destroy((err) => {
-      if (err) return res.status(500).json({ message: 'Logout failed' });
-      res.status(200).json({ message: 'Logged out successfully' });
-    });
-  } else {
-    res.status(400).json({ message: 'User not logged in' });
+  if (!req.session.user) {
+    return res.status(400).json({ message: 'User not logged in' });
   }
+
+  req.session.destroy((err) => {
+    if (err) return res.status(500).json({ message: 'Logout failed' });
+    res.status(200).json({ message: 'Logged out successfully' });
+  });
 });
 
+// Optional: simple activity endpoint if frontend needs ping
+app.post('/update-activity', (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ message: 'Session expired or not found' });
+  }
+  return res.status(200).json({ message: 'Session is active' });
+});
+
+/** --- 404 Handler --- */
 app.use((req, res) => {
   res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
 });
 
-// Global Error Handler
+/** --- Global Error Handler --- */
 app.use((err, req, res, next) => {
   console.error('Server error:', err.message);
   res.status(500).json({ error: 'Internal server error', details: err.message });
 });
-app.use((req, res, next) => {
-  console.log(`Incoming request: ${req.method} ${req.path}`);
-  console.log('Request headers:', req.headers);
-  next();
-});
-
 
 /** --- Start Server --- */
 const port = process.env.PORT || 3001;
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
-

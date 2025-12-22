@@ -1,15 +1,59 @@
 const mongoose = require('mongoose');
 
-const taskSchema = new mongoose.Schema({
-  teacherId: String,
-  title: String,
-  description: String,
-  status: {
-    type: String,
-    enum: ['Pending', 'Completed'],
-    default: 'Pending'
-  },
-  remark: String
-}, { timestamps: true });
+const teacherTaskSchema = new mongoose.Schema(
+  {
+    taskCreateDate: {
+      type: Date,
+      required: true,
+      default: Date.now
+    },
 
-module.exports = mongoose.model('TeacherTask', taskSchema);
+    taskForUser: {
+      type: String,
+      required: true   // teacher username / teacherid
+    },
+
+    class: {
+      type: String,
+      required: true
+    },
+
+    taskGivenBy: {
+      type: String,
+      required: true   // admin / principal name
+    },
+
+    updatedOn: {
+      type: Date
+    },
+
+    taskDescription: {
+      type: String,
+      required: true
+    },
+
+    completedOn: {
+      type: Date
+    },
+
+    delayReason: {
+      type: String
+    },
+
+    replyDate: {
+      type: Date
+    },
+
+    complainResolve: {
+      type: Boolean,
+      default: false
+    },
+
+    other: {
+      type: String
+    }
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model('TeacherTask', teacherTaskSchema);

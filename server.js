@@ -21,8 +21,8 @@ const attendanceRoutes = require('./routes/AttendenceRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const StudentProgressRoutes = require('./routes/StudentProgressRoutes');
 const teacherImportRouter = require('./routes/teacherimport');
-
-
+const complain = require('./routes/complainRoutes');
+const teacherTaskRoutes = require('./routes/teachertaskroutes');
 // --- Active Sessions In-Memory ---
 let activeSessions = {};
 
@@ -118,6 +118,10 @@ app.use('/teachers', teacherRoutes);
 app.use('/users', userRoutes);
 app.use('/StudentProgress', StudentProgressRoutes);
 app.use('/api', teacherImportRouter);
+app.use('/complains', complain);
+
+app.use('/teachertask', teacherTaskRoutes);
+
 /** --- Middleware: Inactive Session Check --- */
 function checkInactiveSession(req, res, next) {
   const username = req.body.username || req.query.username || req.session.username;

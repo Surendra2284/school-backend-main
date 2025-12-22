@@ -8,7 +8,7 @@ const ComplainSchema = new mongoose.Schema(
 
     role: { 
       type: String,
-      enum: ['Student', 'Teacher', 'Parent'],
+      enum: ['Student', 'Teacher', 'Parent','Admin'],
       required: true
     },
 

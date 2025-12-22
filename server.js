@@ -11,7 +11,7 @@ const MongoStore = require('connect-mongo');
 dotenv.config();
 const app = express();
 
-/** --- Models & Routes --- */
+// --- Import Routes ---
 const UserModel = require('./models/User');
 const userRoutes = require('./routes/userRoutes');
 const photoRoutes = require('./routes/photoRoutes');
@@ -24,7 +24,9 @@ const teacherImportRouter = require('./routes/teacherimport');
 const complainRoutes = require('./routes/complainRoutes');
 const teacherTaskRoutes = require('./routes/teachertaskroutes');
 
-/** --- CORS --- */
+// NO in-memory activeSessions; use express-session + MongoStore only
+
+/** --- Middleware --- */
 const allowedOrigins = [
   'http://localhost:4200',
   'https://school-frontend-6x4m.onrender.com',
@@ -50,22 +52,28 @@ app.use(
   })
 );
 
-// Simple request logger (single instance)
+// Simple request logger
 app.use((req, res, next) => {
   console.log(`➡️ ${req.method} ${req.path}`);
-  console.log('Origin:', req.headers.origin || 'N/A');
-  console.log('User-Agent:', req.headers['user-agent'] || 'N/A');
+  console.log('Incoming Origin:', req.headers.origin);
+  console.log('User-Agent:', req.headers['user-agent']);
   next();
 });
 
-// Handle OPTIONS preflight
+// Handle OPTIONS (CORS preflight)
 app.options('*', cors());
 
-/** --- Body Parsing --- */
+/** --- Body parsing --- */
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-/** --- Sessions (Mongo-backed, Render‑friendly) --- */
+/** --- Session handling (Render-friendly) --- */
+const isProduction = process.env.NODE_ENV === 'production';
+if (isProduction) {
+  // Required for correct secure cookie behavior behind Render proxy
+  app.set('trust proxy', 1);
+}
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'default-session-secret',
@@ -74,36 +82,34 @@ app.use(
     store: MongoStore.create({
       mongoUrl: process.env.MONGODB_URI,
       collectionName: 'sessions',
-      ttl: 24 * 60 * 60,
+      ttl: 24 * 60 * 60, // 1 day
       autoRemove: 'native',
     }),
     cookie: {
       maxAge: 1000 * 60 * 60 * 24,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProduction,                         // true on Render
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: isProduction ? 'none' : 'lax',      // allow cross-site in prod
     },
   })
 );
 
-/** --- MongoDB Connection (Mongoose 7/8 friendly) --- */
+/** --- MongoDB Connection --- */
 mongoose
   .connect(process.env.MONGODB_URI, {
+    // useNewUrlParser & useUnifiedTopology are default in Mongoose 6+
     serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-    maxPoolSize: 10,
-    bufferCommands: false,
   })
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch((err) => console.error('❌ MongoDB connection error:', err.message));
 
 /** --- Routes --- */
-// Health/root
+// Root
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to the backend server!' });
 });
 
-// API routes
+// Feature routes
 app.use('/photos', photoRoutes);
 app.use('/notices', noticeRoutes);
 app.use('/attendance', attendanceRoutes);
@@ -121,7 +127,6 @@ app.use('/teachertask', teacherTaskRoutes);
 app.post('/sign-up', async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(req.body.password, 10);
-
     const user = new UserModel({
       username: req.body.username,
       password: hashedPassword,
@@ -153,7 +158,6 @@ app.post('/login', async (req, res) => {
     if (!user) return res.status(401).json({ message: 'User not found' });
 
     if (user.role !== role) return res.status(403).json({ message: 'Unauthorized role' });
-
     if (!user.isApproved) {
       return res.status(403).json({ message: 'Your account is not approved by admin yet.' });
     }
@@ -167,13 +171,26 @@ app.post('/login', async (req, res) => {
       { expiresIn: '1h' }
     );
 
-    // store minimal user info in MongoDB-backed session
-    req.session.user = { username: user.username, role: user.role };
+    // Persist minimal user info in Mongo-backed session
+    req.session.user = {
+      username: user.username,
+      role: user.role,
+      userId: user._id.toString(),
+    };
+
     res.status(200).json({ token, expiresIn: 3600 });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
+});
+
+// Update activity – check session only
+app.post('/update-activity', (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ message: 'Session expired or not found' });
+  }
+  return res.status(200).json({ message: 'Session is active' });
 });
 
 // Logout
@@ -188,14 +205,6 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// Optional: simple activity endpoint if frontend needs ping
-app.post('/update-activity', (req, res) => {
-  if (!req.session.user) {
-    return res.status(401).json({ message: 'Session expired or not found' });
-  }
-  return res.status(200).json({ message: 'Session is active' });
-});
-
 /** --- 404 Handler --- */
 app.use((req, res) => {
   res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
@@ -208,7 +217,9 @@ app.use((err, req, res, next) => {
 });
 
 /** --- Start Server --- */
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
+
+module.exports = app;

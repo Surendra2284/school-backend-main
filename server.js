@@ -108,8 +108,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// ... routes ...
-// Feature routes
 app.use('/photos', photoRoutes);
 app.use('/notices', noticeRoutes);
 app.use('/attendance', attendanceRoutes);
@@ -119,9 +117,7 @@ app.use('/users', userRoutes);
 app.use('/StudentProgress', StudentProgressRoutes);
 app.use('/api', teacherImportRouter);
 app.use('/complains', complain);
-
 app.use('/teachertask', teacherTaskRoutes);
-
 /** --- Middleware: Inactive Session Check --- */
 function checkInactiveSession(req, res, next) {
   const username = req.body.username || req.query.username || req.session.username;
@@ -141,7 +137,6 @@ function checkInactiveSession(req, res, next) {
   }
   next();
 }
-
 /** --- Auth Routes --- */
 // Sign-Up
 app.post('/sign-up', async (req, res) => {

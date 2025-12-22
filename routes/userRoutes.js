@@ -27,10 +27,19 @@ router.post('/', async (req, res) => {
     const savedUser = await user.save();
 
     res.status(201).json(savedUser);
-  } catch (error) {
-    res.status(500).json({ message: 'Error creating user', error: error.message });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({
+        message: "Username already exists"
+      });
+    }
+    res.status(500).json({
+      message: "Error creating user",
+      error: err.message
+    });
   }
 });
+
 
 // -------------------------
 // BULK CREATE OR UPDATE USERS

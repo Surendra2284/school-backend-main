@@ -12,6 +12,11 @@ const photoSchema = new mongoose.Schema({
   contentType: {
     type: String, // MIME type of the image (e.g., 'image/jpeg')
     required: true
+  },
+  Role: {
+    type: String, //For Selection of photos
+   
+    default: 'Admin'
   }
 });
 

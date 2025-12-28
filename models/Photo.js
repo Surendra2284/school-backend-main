@@ -15,7 +15,7 @@ const photoSchema = new mongoose.Schema({
   },
   Role: {
     type: String, //For Selection of photos
-   
+    required: false,
     default: 'Admin'
   },
   isApproved: { type: Boolean, default: false }

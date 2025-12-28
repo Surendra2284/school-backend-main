@@ -17,7 +17,8 @@ const photoSchema = new mongoose.Schema({
     type: String, //For Selection of photos
    
     default: 'Admin'
-  }
+  },
+  isApproved: { type: Boolean, default: false }
 });
 
 module.exports = mongoose.model('Photo', photoSchema);

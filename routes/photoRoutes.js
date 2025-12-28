@@ -24,7 +24,7 @@ router.post('/add', upload.single('image'), async (req, res) => {
       return res.status(400).json({ message: 'Invalid image buffer or unsupported format!' });
     }
 
-    const { name } = req.body;
+    const { name, Role = 'Admin' } = req.body;
 
     // Resize and compress image using sharp
     const resizedImageBuffer = await sharp(req.file.buffer)
@@ -35,6 +35,8 @@ router.post('/add', upload.single('image'), async (req, res) => {
 
     const photo = new Photo({
       name,
+      Role,                // store role
+      isApproved: false,   // default pending
       image: resizedImageBuffer,
       contentType: 'image/jpeg'
     });
@@ -51,14 +53,19 @@ router.post('/add', upload.single('image'), async (req, res) => {
 router.put('/update/:id', upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = { name: req.body.name };
+    const updates = {};
+
+    if (req.body.name) updates.name = req.body.name;
+    if (req.body.Role) updates.Role = req.body.Role;
+    if (typeof req.body.isApproved !== 'undefined') {
+      updates.isApproved = req.body.isApproved === 'true' || req.body.isApproved === true;
+    }
 
     if (req.file && req.file.buffer && req.file.buffer.length > 0) {
-      // Process new image with sharp before saving
       const resizedImageBuffer = await sharp(req.file.buffer)
-        .toFormat("jpeg") // Ensure format compatibility
-        .resize({ width: 800 }) // Resize width to 800px
-        .jpeg({ quality: 70 }) // Compress image quality to 70%
+        .toFormat("jpeg")
+        .resize({ width: 800 })
+        .jpeg({ quality: 70 })
         .toBuffer();
 
       updates.image = resizedImageBuffer;
@@ -77,6 +84,7 @@ router.put('/update/:id', upload.single('image'), async (req, res) => {
     res.status(500).json({ message: 'Error updating photo', error });
   }
 });
+
 
 // Delete a photo
 router.delete('/delete/:id', async (req, res) => {
@@ -99,7 +107,13 @@ router.delete('/delete/:id', async (req, res) => {
 // Get all photos
 router.get('/', async (req, res) => {
   try {
-    const photos = await Photo.find();
+    const { role, includeAll } = req.query;
+
+    const query = {};
+    if (role) query.Role = role;
+    if (!includeAll) query.isApproved = true; // only approved for non-admin views
+
+    const photos = await Photo.find(query);
 
     const formattedPhotos = photos
       .filter(photo => photo.image && photo.image.length > 0)
@@ -110,7 +124,9 @@ router.get('/', async (req, res) => {
         return {
           _id: photo._id,
           name: photo.name,
-          image: `data:${mimeType};base64,${base64Image}`
+          image: `data:${mimeType};base64,${base64Image}`,
+          Role: photo.Role,
+          isApproved: photo.isApproved
         };
       });
 

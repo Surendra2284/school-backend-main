@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { setTheUsername } = require('whatwg-url');
 
 const photoSchema = new mongoose.Schema({
   name: {
@@ -17,6 +18,16 @@ const photoSchema = new mongoose.Schema({
     type: String, //For Selection of photos
     required: false,
     default: 'Admin'
+  },
+  assignclass: {
+    type: String, //For Selection of photos
+    required: false,
+    default: 'All'
+  },
+  setTheUsername: {
+    type: String, //For Selection of photos
+    required: false,
+    default: 'All'
   },
   isApproved: { type: Boolean, default: false }
 });

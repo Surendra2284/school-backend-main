@@ -2,6 +2,7 @@ const express = require('express');
 const sharp = require('sharp');
 const Photo = require('../models/Photo');
 const multer = require('multer');
+const { setTheUsername } = require('whatwg-url');
 
 const router = express.Router();
 
@@ -24,7 +25,7 @@ router.post('/add', upload.single('image'), async (req, res) => {
       return res.status(400).json({ message: 'Invalid image buffer or unsupported format!' });
     }
 
-    const { name, Role = 'Admin' } = req.body;
+    const { name,setTheUsername,assignclass,Role = 'Admin' } = req.body;
 
     // Resize and compress image using sharp
     const resizedImageBuffer = await sharp(req.file.buffer)
@@ -35,7 +36,9 @@ router.post('/add', upload.single('image'), async (req, res) => {
 
     const photo = new Photo({
       name,
-      Role,                // store role
+      Role,
+      setTheUsername,
+      assignclass,
       isApproved: false,   // default pending
       image: resizedImageBuffer,
       contentType: 'image/jpeg'
@@ -56,6 +59,8 @@ router.put('/update/:id', upload.single('image'), async (req, res) => {
     const updates = {};
 
     if (req.body.name) updates.name = req.body.name;
+    if (req.body.setTheUsername) updates.setTheUsername = req.body.setTheUsername;
+    if (req.body.assignclass) updates.assignclass = req.body.assignclass;
     if (req.body.Role) updates.Role = req.body.Role;
     if (typeof req.body.isApproved !== 'undefined') {
       updates.isApproved = req.body.isApproved === 'true' || req.body.isApproved === true;
@@ -108,33 +113,34 @@ router.delete('/delete/:id', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const { role, includeAll } = req.query;
+    const isAdminView = includeAll === 'true';
 
     const query = {};
-    if (role) query.Role = role;
-    if (!includeAll) query.isApproved = true; // only approved for non-admin views
+    if (role && !isAdminView) query.Role = role;  // Admin ignores role
+    if (!isAdminView) query.isApproved = true;    // Only non-admin filters approved
 
     const photos = await Photo.find(query);
 
-    const formattedPhotos = photos
-      .filter(photo => photo.image && photo.image.length > 0)
-      .map(photo => {
-        const base64Image = Buffer.from(photo.image).toString('base64');
-        const mimeType = photo.contentType || 'image/jpeg';
+    // Admin: skip image validation to show all (including pending)
+    const validPhotos = isAdminView 
+      ? photos.filter(photo => photo.image)  // Less strict for Admin
+      : photos.filter(photo => photo.image && photo.image.length > 0);
 
-        return {
-          _id: photo._id,
-          name: photo.name,
-          image: `data:${mimeType};base64,${base64Image}`,
-          Role: photo.Role,
-          isApproved: photo.isApproved
-        };
-      });
+    const formattedPhotos = validPhotos.map(photo => ({
+      _id: photo._id,
+      name: photo.name,
+      image: `data:${photo.contentType || 'image/jpeg'};base64,${Buffer.from(photo.image).toString('base64')}`,
+      Role: photo.Role,
+      isApproved: photo.isApproved,
+      setTheUsername: photo.setTheUsername,
+      assignclass: photo.assignclass  
+    }));
 
     res.json(formattedPhotos);
   } catch (err) {
-    console.error('Error fetching photos:', err);
     res.status(500).json({ error: 'Error fetching photos' });
   }
 });
+
 
 module.exports = router;

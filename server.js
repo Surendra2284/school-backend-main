@@ -25,6 +25,22 @@ const complainRoutes = require('./routes/complainRoutes');
 const teacherTaskRoutes = require('./routes/teachertaskroutes');
 
 // NO in-memory activeSessions; use express-session + MongoStore only
+// sseClients.js (or put in app.js)
+const clients = new Set();
+
+function addClient(res) {
+  clients.add(res);
+  res.on('close', () => clients.delete(res));
+}
+
+function emitNoticeChanged(payload = {}) {
+  const data = `data: ${JSON.stringify(payload)}\n\n`;
+  for (const res of clients) {
+    res.write(data);
+  }
+}
+
+module.exports = { addClient, emitNoticeChanged };
 
 /** --- Middleware --- */
 const allowedOrigins = [

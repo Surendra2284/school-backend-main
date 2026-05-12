@@ -1,366 +1,1001 @@
 const express = require('express');
-const Student = require('../models/Student');
 const router = express.Router();
+
 const XLSX = require('xlsx');
 const multer = require('multer');
 
-const upload = multer({ storage: multer.memoryStorage() });
-const validatePayload = (requiredFields, payload) => {
+const Student = require('../models/Student');
+
+const { emitNoticeChanged } = require('../server');
+
+/* =========================================================
+   MULTER CONFIG
+========================================================= */
+
+const upload = multer({
+  storage: multer.memoryStorage()
+});
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+const validatePayload = (
+  requiredFields,
+  payload
+) => {
+
   for (const field of requiredFields) {
-    if (!payload[field] || payload[field].toString().trim() === '') {
+
+    if (
+      !payload[field] ||
+      payload[field]
+        .toString()
+        .trim() === ''
+    ) {
+
       return `${field} is required.`;
     }
   }
+
   return null;
 };
 
-// Create
+const MOBILE_RE =
+  /^[6-9]\d{9}$/;
+
+/* =========================================================
+   CREATE STUDENT
+========================================================= */
+
 router.post('/add', async (req, res) => {
-  try { console.log('Incoming student payload:', req.body);
-    const validationError = validatePayload(['name', 'class', 'mobileNo', 'Email'], req.body);
-    if (validationError) {
-      return res.status(400).json({ message: validationError });
-    }
-    const student = new Student(req.body);
-    await student.save();
-    res.status(201).json({ message: 'Student created successfully!', student });
-  } catch (error) {
-    console.error('Error adding student:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
 
-
-router.post('/bulk-notice', upload.single('file'), async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ error: "Excel file required" });
-        }
-
-        const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet);
-
-        let results = {
-            updated: 0,
-            notFound: [],
-            nameMismatch: [],
-            errors: []
-        };
-
-        for (const row of rows) {
-            const studentId = row["StudentID"];
-            const excelName = (row["Name"] || "").trim();
-            const newNotice = row["Notice"];
-            const excelAttendance = row["Attendance"];
-            const replaceMode = (row["ReplaceMode"] || "").toString().toLowerCase() === "yes";
-
-            if (!studentId || !excelName) {
-                results.errors.push({ row, error: "Missing StudentID or Name" });
-                continue;
-            }
-
-            // Find student
-            const student = await Student.findOne({ studentId });
-            if (!student) {
-                results.notFound.push(studentId);
-                continue;
-            }
-
-            // Name validation
-            const dbName = (student.name || "").trim();
-            if (dbName.toLowerCase() !== excelName.toLowerCase()) {
-                results.nameMismatch.push({ studentId, excelName, dbName });
-                continue;
-            }
-
-            // --------------- NEW REPLACE MODE LOGIC -----------------
-            if (replaceMode) {
-                // Replace Notice
-                student.Notice = newNotice ? newNotice : "";
-
-                // Replace Attendance
-                if (!isNaN(Number(excelAttendance))) {
-                    student.attendance = Number(excelAttendance);
-                }
-
-            } else {
-                // --------------- OLD APPEND MODE LOGIC -----------------
-
-                // --- Append Notice ---
-                if (newNotice && newNotice.trim() !== "") {
-                    if (student.Notice && student.Notice.trim() !== "") {
-                        student.Notice = student.Notice + " | " + newNotice;
-                    } else {
-                        student.Notice = newNotice;
-                    }
-                }
-
-                // --- Add attendance ---
-                if (excelAttendance !== undefined && excelAttendance !== null && excelAttendance !== "") {
-                    const addAttendance = Number(excelAttendance);
-
-                    if (!isNaN(addAttendance)) {
-                        if (!student.attendance) student.attendance = 0;
-                        student.attendance += addAttendance;
-                    } else {
-                        results.errors.push({
-                            studentId,
-                            error: "Invalid attendance value",
-                            value: excelAttendance
-                        });
-                    }
-                }
-            }
-
-            await student.save();
-            results.updated++;
-        }
-
-        res.json(results);
-
-    } catch (error) {
-        console.error("Bulk Update Error:", error);
-        res.status(500).json({ error: "Server error", details: error });
-    }
-});
-
-// Get all
-router.get('/', async (req, res) => {
   try {
-    const filters = { ...req.query };
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = parseInt(req.query.skip) || 0;
-    delete filters.limit;
-    delete filters.skip;
-const total = await Student.countDocuments(filters);
-    const students = await Student.find(filters).limit(limit).skip(skip);
-    res.status(200).json(students);
-  } catch (error) {
-    console.error('Error fetching students:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-// GET unique class list
-router.get('/classes/list', async (req, res) => {
-  try {
-    const classes = await Student.distinct("class");
-    return res.json(classes.sort());
-  } catch (error) {
-    console.error("Error fetching class list:", error);
-    return res.status(500).json({ error: "Failed to load classes" });
-  }
-});
 
-// Get by ID
-router.get('/:id', async (req, res) => {
-  try {
-    const student = await Student.findOne({ studentId: req.params.id });
-    if (!student) return res.status(404).json({ message: 'Student not found' });
-    res.status(200).json(student);
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Update
-router.put('/update/:id', async (req, res) => {
-  try {
-    if (Object.keys(req.body).length === 0) {
-      return res.status(400).json({ message: 'No data provided for update.' });
-    }
-    const student = await Student.findOneAndUpdate(
-      { studentId: req.params.id },
-      req.body,
-      { new: true }
+    console.log(
+      'Incoming student payload:',
+      req.body
     );
-    if (!student) return res.status(404).json({ message: 'Student not found!' });
-    res.status(200).json({ message: 'Student updated successfully!', student });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
-// Delete
-router.delete('/delete/:id', async (req, res) => {
-  try {
-    const result = await Student.deleteOne({ studentId: req.params.id });
-    if (result.deletedCount === 0) return res.status(404).json({ message: 'Student not found' });
-    res.status(200).json({ message: 'Student successfully deleted' });
-  } catch (error) {
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
+    const validationError =
+      validatePayload(
 
-// Search by class
-router.get('/class/:class', async (req, res) => {
-  try {
-    const className = req.params.class;
-    if (!className || className.trim() === '') {
-      return res.status(400).json({ message: 'Class name is required.' });
+        [
+          'name',
+          'class',
+          'mobileNo',
+          'Email'
+        ],
+
+        req.body
+      );
+
+    if (validationError) {
+
+      return res.status(400).json({
+        message: validationError
+      });
     }
-    const students = await Student.find({ class: className, ...req.query });
-    if (!students.length) return res.status(404).json({ message: 'No students found' });
-    res.status(200).json(students);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
+    // Mobile validation
+    if (
+      !MOBILE_RE.test(
+        String(req.body.mobileNo)
+      )
+    ) {
 
-// POST /students/bulk?upsert=true|false
-
-
-
-// Search by name
-router.get('/name/:name', async (req, res) => {
-  try {
-    const name = req.params.name;
-    if (!name || name.trim() === '') {
-      return res.status(400).json({ message: 'Name is required.' });
+      return res.status(400).json({
+        message:
+          'Invalid mobile number.'
+      });
     }
-    const students = await Student.find({
-      name: { $regex: name, $options: 'i' },
-      ...req.query
+
+    const student =
+      new Student(req.body);
+
+    await student.save();
+
+    // SSE EVENT
+    emitNoticeChanged({
+
+      type: 'student-added',
+
+      studentId:
+        student.studentId
     });
-    if (!students.length) return res.status(404).json({ message: 'No students found' });
-    res.status(200).json(students);
+
+    return res.status(201).json({
+
+      message:
+        'Student created successfully!',
+
+      student
+    });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+
+    console.error(
+      'Error adding student:',
+      error
+    );
+
+    return res.status(500).json({
+
+      error: error.message
+    });
   }
 });
-router.post('/bulk', async (req, res) => {
-  try {
-    const { students } = req.body || {};
-    const upsert = String(req.query.upsert || 'false') === 'true';
 
-    if (!Array.isArray(students) || students.length === 0) {
-      return res.status(400).json({ message: 'students must be a non-empty array' });
-    }
+/* =========================================================
+   BULK NOTICE UPDATE
+========================================================= */
 
-    const MOBILE_RE = /^[6-9]\d{9}$/;
-    const MAX_PHOTO_LEN = 2_000_000; // ~2MB guard
+router.post(
 
-    const clean = [];
-    const errors = [];
-    const seen = new Set();
+  '/bulk-notice',
 
-    students.forEach((raw, i) => {
-      const row = i + 2; // Excel-like row numbering (1 header)
+  upload.single('file'),
 
-      const s = {
-        studentId: Number(raw.studentId),
-        name: (raw.name || '').trim(),
-        class: (raw.class || '').trim(),
-        mobileNo: String(raw.mobileNo || '').trim(),
-        address: raw.address || '',
-        Role: raw.Role || 'Student',
-        Notice: raw.Notice || '',
-        Email: (raw.Email || '').trim(),
-        attendance: raw.attendance === '' || raw.attendance == null ? 0 : Number(raw.attendance),
-        photo: raw.photo || '',
-        classteacher: raw.classteacher || ''
+  async (req, res) => {
+
+    try {
+
+      if (!req.file) {
+
+        return res.status(400).json({
+
+          error:
+            'Excel file required.'
+        });
+      }
+
+      const workbook =
+        XLSX.read(req.file.buffer, {
+          type: 'buffer'
+        });
+
+      const sheet =
+        workbook.Sheets[
+          workbook.SheetNames[0]
+        ];
+
+      const rows =
+        XLSX.utils.sheet_to_json(
+          sheet
+        );
+
+      const results = {
+
+        updated: 0,
+
+        notFound: [],
+
+        nameMismatch: [],
+
+        errors: []
       };
 
-      // Validation
-      if (Number.isNaN(s.studentId)) errors.push({ row, error: 'StudentId must be a number' });
-      if (!s.name) errors.push({ row, error: 'Name is required' });
-      if (!s.class) errors.push({ row, error: 'Class is required' });
-      if (!s.Email) errors.push({ row, error: 'Email is required' });
-      if (!s.mobileNo || !MOBILE_RE.test(s.mobileNo)) errors.push({ row, error: 'Invalid MobileNo' });
+      for (const row of rows) {
 
-      // De-dup within file
-      if (seen.has(s.studentId)) {
-        errors.push({ row, error: `Duplicate StudentId in payload: ${s.studentId}` });
-      } else {
-        seen.add(s.studentId);
-      }
+        const studentId =
+          Number(row.StudentID);
 
-      // Optional: drop oversize photo fields to avoid payload bloat
-      if (s.photo && String(s.photo).length > MAX_PHOTO_LEN) {
-        s.photo = '';
-        errors.push({ row, warn: 'Photo removed due to size >2MB' });
-      }
+        const excelName =
+          String(
+            row.Name || ''
+          ).trim();
 
-      clean.push(s);
-    });
+        const newNotice =
+          row.Notice || '';
 
-    if (errors.some(e => !e.warn)) {
-      // Return only hard errors as 422; keep warns in payload too
-      const hard = errors.filter(e => !e.warn);
-      return res.status(422).json({ message: 'Validation errors', inserted: 0, updated: 0, skipped: 0, errors: hard });
-    }
+        const excelAttendance =
+          row.Attendance;
 
-    // Check existing to compute inserted/updated/skipped
-    const ids = clean.map(s => s.studentId);
-    const existing = await Student.find({ studentId: { $in: ids } }, { studentId: 1 }).lean();
-    const existingSet = new Set(existing.map(e => e.studentId));
+        const replaceMode =
+          String(
+            row.ReplaceMode || ''
+          ).toLowerCase() === 'yes';
 
-    let inserted = 0, updated = 0, skipped = 0;
-    const perRowErrors = [];
+        if (
+          Number.isNaN(studentId) ||
+          !excelName
+        ) {
 
-    if (upsert) {
-      // Efficient upsert using bulkWrite
-      const ops = clean.map((s) => ({
-        updateOne: {
-          filter: { studentId: s.studentId },
-          update: { $set: s },
-          upsert: true
-        }
-      }));
+          results.errors.push({
 
-      try {
-        const result = await Student.bulkWrite(ops, { ordered: false });
+            row,
 
-        // result summary is driver-dependent; cover common fields:
-        const upsertedCount = result.upsertedCount ?? (result.result?.nUpserted ?? 0);
-        const modifiedCount = result.modifiedCount ?? (result.result?.nModified ?? 0);
-        const matchedCount  = result.matchedCount ?? (result.result?.nMatched ?? 0);
-
-        // "updated" = docs that existed and were modified OR matched (we’ll approximate using existingSet)
-        updated = clean.filter(s => existingSet.has(s.studentId)).length;
-        inserted = upsertedCount || (clean.length - updated);
-      } catch (err) {
-        // Collect write errors if any
-        if (Array.isArray(err?.writeErrors)) {
-          err.writeErrors.forEach(w => {
-            const idx = w?.index ?? 0;
-            perRowErrors.push({ row: idx + 2, error: w?.errmsg || w?.err?.message || 'Upsert failed' });
+            error:
+              'Missing StudentID or Name'
           });
-        } else {
-          perRowErrors.push({ row: 'unknown', error: err?.message || 'Upsert failed' });
-        }
-      }
-    } else {
-      // Insert-only; skip duplicates
-      const toInsert = clean.filter(s => !existingSet.has(s.studentId));
-      skipped = clean.length - toInsert.length;
 
-      if (toInsert.length) {
-        try {
-          const docs = await Student.insertMany(toInsert, { ordered: false });
-          inserted = Array.isArray(docs) ? docs.length : (docs?.insertedCount ?? toInsert.length);
-        } catch (err) {
-          // Handle modern MongoBulkWriteError
-          if (Array.isArray(err?.writeErrors)) {
-            const okCount = err?.result?.result?.nInserted ?? err?.insertedDocs?.length ?? 0;
-            inserted = okCount;
-            err.writeErrors.forEach((w) => {
-              perRowErrors.push({ row: (w?.index ?? 0) + 2, error: w?.errmsg || w?.err?.message || 'Insert failed' });
-            });
-          } else {
-            perRowErrors.push({ row: 'unknown', error: err?.message || 'Insert failed' });
+          continue;
+        }
+
+        const student =
+          await Student.findOne({
+            studentId
+          });
+
+        if (!student) {
+
+          results.notFound.push(
+            studentId
+          );
+
+          continue;
+        }
+
+        const dbName =
+          String(
+            student.name || ''
+          ).trim();
+
+        if (
+          dbName.toLowerCase() !==
+          excelName.toLowerCase()
+        ) {
+
+          results.nameMismatch.push({
+
+            studentId,
+
+            excelName,
+
+            dbName
+          });
+
+          continue;
+        }
+
+        // Replace mode
+        if (replaceMode) {
+
+          student.Notice =
+            newNotice || '';
+
+          if (
+            !Number.isNaN(
+              Number(excelAttendance)
+            )
+          ) {
+
+            student.attendance =
+              Number(excelAttendance);
           }
         }
-      }
-    }
 
-    return res.status(200).json({ inserted, updated, skipped, errors: perRowErrors.concat(errors.filter(e => e.warn)) });
+        // Append mode
+        else {
+
+          if (newNotice.trim()) {
+
+            student.Notice =
+              student.Notice
+                ? `${student.Notice} | ${newNotice}`
+                : newNotice;
+          }
+
+          if (
+            excelAttendance !==
+              undefined &&
+            excelAttendance !==
+              null &&
+            excelAttendance !== ''
+          ) {
+
+            const addAttendance =
+              Number(
+                excelAttendance
+              );
+
+            if (
+              !Number.isNaN(
+                addAttendance
+              )
+            ) {
+
+              student.attendance =
+                Number(
+                  student.attendance || 0
+                ) + addAttendance;
+            }
+          }
+        }
+
+        await student.save();
+
+        results.updated++;
+      }
+
+      // SSE EVENT
+      emitNoticeChanged({
+
+        type:
+          'student-bulk-notice-updated',
+
+        updated:
+          results.updated
+      });
+
+      return res.status(200).json(
+        results
+      );
+
+    } catch (error) {
+
+      console.error(
+        'Bulk notice update error:',
+        error
+      );
+
+      return res.status(500).json({
+
+        error: 'Server error',
+
+        details: error.message
+      });
+    }
+  }
+);
+
+/* =========================================================
+   GET ALL STUDENTS
+========================================================= */
+
+router.get('/', async (req, res) => {
+
+  try {
+
+    const filters = {
+      ...req.query
+    };
+
+    const limit =
+      Number(req.query.limit) || 10;
+
+    const skip =
+      Number(req.query.skip) || 0;
+
+    delete filters.limit;
+    delete filters.skip;
+
+    const total =
+      await Student.countDocuments(
+        filters
+      );
+
+    const students =
+      await Student.find(filters)
+
+        .limit(limit)
+
+        .skip(skip)
+
+        .sort({
+          createdAt: -1
+        });
+
+    return res.status(200).json({
+
+      total,
+
+      limit,
+
+      skip,
+
+      students
+    });
+
   } catch (error) {
-    console.error('Bulk import fatal:', error);
-    return res.status(500).json({ message: 'Bulk import failed', error: error?.message || String(error) });
+
+    console.error(
+      'Error fetching students:',
+      error
+    );
+
+    return res.status(500).json({
+
+      error: error.message
+    });
   }
 });
 
+/* =========================================================
+   GET CLASS LIST
+========================================================= */
+
+router.get(
+  '/classes/list',
+
+  async (req, res) => {
+
+    try {
+
+      const classes =
+        await Student.distinct(
+          'class'
+        );
+
+      return res.status(200).json(
+        classes.sort()
+      );
+
+    } catch (error) {
+
+      console.error(
+        'Error fetching class list:',
+        error
+      );
+
+      return res.status(500).json({
+
+        error:
+          'Failed to load classes.'
+      });
+    }
+  }
+);
+
+/* =========================================================
+   GET STUDENT BY ID
+========================================================= */
+
+router.get('/:id', async (req, res) => {
+
+  try {
+
+    const student =
+      await Student.findOne({
+
+        studentId:
+          req.params.id
+      });
+
+    if (!student) {
+
+      return res.status(404).json({
+
+        message:
+          'Student not found.'
+      });
+    }
+
+    return res.status(200).json(
+      student
+    );
+
+  } catch (error) {
+
+    console.error(
+      'Error fetching student:',
+      error
+    );
+
+    return res.status(500).json({
+
+      error: 'Server error.'
+    });
+  }
+});
+
+/* =========================================================
+   UPDATE STUDENT
+========================================================= */
+
+router.put(
+  '/update/:id',
+
+  async (req, res) => {
+
+    try {
+
+      if (
+        Object.keys(req.body)
+          .length === 0
+      ) {
+
+        return res.status(400).json({
+
+          message:
+            'No data provided for update.'
+        });
+      }
+
+      const student =
+        await Student.findOneAndUpdate(
+
+          {
+            studentId:
+              req.params.id
+          },
+
+          req.body,
+
+          {
+            new: true,
+            runValidators: true
+          }
+        );
+
+      if (!student) {
+
+        return res.status(404).json({
+
+          message:
+            'Student not found.'
+        });
+      }
+
+      // SSE EVENT
+      emitNoticeChanged({
+
+        type:
+          'student-updated',
+
+        studentId:
+          student.studentId
+      });
+
+      return res.status(200).json({
+
+        message:
+          'Student updated successfully!',
+
+        student
+      });
+
+    } catch (error) {
+
+      console.error(
+        'Error updating student:',
+        error
+      );
+
+      return res.status(500).json({
+
+        error: error.message
+      });
+    }
+  }
+);
+
+/* =========================================================
+   DELETE STUDENT
+========================================================= */
+
+router.delete(
+  '/delete/:id',
+
+  async (req, res) => {
+
+    try {
+
+      const result =
+        await Student.deleteOne({
+
+          studentId:
+            req.params.id
+        });
+
+      if (
+        result.deletedCount === 0
+      ) {
+
+        return res.status(404).json({
+
+          message:
+            'Student not found.'
+        });
+      }
+
+      // SSE EVENT
+      emitNoticeChanged({
+
+        type:
+          'student-deleted',
+
+        studentId:
+          req.params.id
+      });
+
+      return res.status(200).json({
+
+        message:
+          'Student deleted successfully.'
+      });
+
+    } catch (error) {
+
+      console.error(
+        'Error deleting student:',
+        error
+      );
+
+      return res.status(500).json({
+
+        message:
+          'Internal Server Error.'
+      });
+    }
+  }
+);
+
+/* =========================================================
+   SEARCH BY CLASS
+========================================================= */
+
+router.get(
+  '/class/:class',
+
+  async (req, res) => {
+
+    try {
+
+      const className =
+        req.params.class;
+
+      if (
+        !className ||
+        !className.trim()
+      ) {
+
+        return res.status(400).json({
+
+          message:
+            'Class name is required.'
+        });
+      }
+
+      const students =
+        await Student.find({
+
+          class: className,
+
+          ...req.query
+        });
+
+      return res.status(200).json(
+        students
+      );
+
+    } catch (error) {
+
+      console.error(
+        'Error searching students by class:',
+        error
+      );
+
+      return res.status(500).json({
+
+        error: error.message
+      });
+    }
+  }
+);
+
+/* =========================================================
+   SEARCH BY NAME
+========================================================= */
+
+router.get(
+  '/name/:name',
+
+  async (req, res) => {
+
+    try {
+
+      const name =
+        req.params.name;
+
+      if (
+        !name ||
+        !name.trim()
+      ) {
+
+        return res.status(400).json({
+
+          message:
+            'Name is required.'
+        });
+      }
+
+      const students =
+        await Student.find({
+
+          name: {
+
+            $regex: name,
+
+            $options: 'i'
+          },
+
+          ...req.query
+        });
+
+      return res.status(200).json(
+        students
+      );
+
+    } catch (error) {
+
+      console.error(
+        'Error searching students by name:',
+        error
+      );
+
+      return res.status(500).json({
+
+        error: error.message
+      });
+    }
+  }
+);
+
+/* =========================================================
+   BULK STUDENT IMPORT
+========================================================= */
+
+router.post(
+  '/bulk',
+
+  async (req, res) => {
+
+    try {
+
+      const { students } =
+        req.body || {};
+
+      const upsert =
+        String(
+          req.query.upsert || 'false'
+        ) === 'true';
+
+      if (
+        !Array.isArray(students) ||
+        students.length === 0
+      ) {
+
+        return res.status(400).json({
+
+          message:
+            'students must be a non-empty array.'
+        });
+      }
+
+      const clean = [];
+
+      const errors = [];
+
+      const seen = new Set();
+
+      students.forEach((raw, i) => {
+
+        const row = i + 2;
+
+        const s = {
+
+          studentId:
+            Number(raw.studentId),
+
+          name:
+            String(
+              raw.name || ''
+            ).trim(),
+
+          class:
+            String(
+              raw.class || ''
+            ).trim(),
+
+          mobileNo:
+            String(
+              raw.mobileNo || ''
+            ).trim(),
+
+          address:
+            raw.address || '',
+
+          Role:
+            raw.Role || 'Student',
+
+          Notice:
+            raw.Notice || '',
+
+          Email:
+            String(
+              raw.Email || ''
+            ).trim(),
+
+          attendance:
+            Number(
+              raw.attendance || 0
+            ),
+
+          photo:
+            raw.photo || '',
+
+          classteacher:
+            raw.classteacher || ''
+        };
+
+        if (
+          Number.isNaN(
+            s.studentId
+          )
+        ) {
+
+          errors.push({
+
+            row,
+
+            error:
+              'Invalid studentId.'
+          });
+        }
+
+        if (!s.name) {
+
+          errors.push({
+
+            row,
+
+            error:
+              'Name is required.'
+          });
+        }
+
+        if (!s.class) {
+
+          errors.push({
+
+            row,
+
+            error:
+              'Class is required.'
+          });
+        }
+
+        if (
+          !MOBILE_RE.test(
+            s.mobileNo
+          )
+        ) {
+
+          errors.push({
+
+            row,
+
+            error:
+              'Invalid mobile number.'
+          });
+        }
+
+        if (
+          seen.has(
+            s.studentId
+          )
+        ) {
+
+          errors.push({
+
+            row,
+
+            error:
+              `Duplicate studentId ${s.studentId}`
+          });
+        }
+
+        seen.add(s.studentId);
+
+        clean.push(s);
+      });
+
+      if (errors.length) {
+
+        return res.status(422).json({
+
+          message:
+            'Validation errors.',
+
+          errors
+        });
+      }
+
+      let inserted = 0;
+
+      let updated = 0;
+
+      if (upsert) {
+
+        const ops = clean.map(
+          (student) => ({
+
+            updateOne: {
+
+              filter: {
+
+                studentId:
+                  student.studentId
+              },
+
+              update: {
+
+                $set: student
+              },
+
+              upsert: true
+            }
+          })
+        );
+
+        const result =
+          await Student.bulkWrite(
+            ops,
+            {
+              ordered: false
+            }
+          );
+
+        inserted =
+          result.upsertedCount || 0;
+
+        updated =
+          result.modifiedCount || 0;
+      }
+
+      else {
+
+        const docs =
+          await Student.insertMany(
+            clean,
+            {
+              ordered: false
+            }
+          );
+
+        inserted =
+          docs.length || 0;
+      }
+
+      // SSE EVENT
+      emitNoticeChanged({
+
+        type:
+          'students-bulk-imported',
+
+        inserted,
+
+        updated
+      });
+
+      return res.status(200).json({
+
+        inserted,
+
+        updated,
+
+        total:
+          clean.length
+      });
+
+    } catch (error) {
+
+      console.error(
+        'Bulk import fatal:',
+        error
+      );
+
+      return res.status(500).json({
+
+        message:
+          'Bulk import failed.',
+
+        error:
+          error.message
+      });
+    }
+  }
+);
 
 module.exports = router;

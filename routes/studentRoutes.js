@@ -552,44 +552,7 @@ router.get(
    GET STUDENT BY ID
 ===================================================== */
 
-router.get('/:id', async (req, res) => {
 
-  try {
-
-    const student =
-      await Student.findOne({
-
-        studentId:
-          req.params.id
-      });
-
-    if (!student) {
-
-      return res.status(404).json({
-
-        message:
-          'Student not found.'
-      });
-    }
-
-    return res
-      .status(200)
-      .json(student);
-
-  } catch (error) {
-
-    console.error(
-      'Error fetching student:',
-      error
-    );
-
-    return res.status(500).json({
-
-      error:
-        'Server error.'
-    });
-  }
-});
 
 /* =====================================================
    UPDATE STUDENT
@@ -915,7 +878,44 @@ router.get(
     }
   }
 );
+router.get('/:id', async (req, res) => {
 
+  try {
+
+    const student =
+      await Student.findOne({
+
+        studentId:
+          req.params.id
+      });
+
+    if (!student) {
+
+      return res.status(404).json({
+
+        message:
+          'Student not found.'
+      });
+    }
+
+    return res
+      .status(200)
+      .json(student);
+
+  } catch (error) {
+
+    console.error(
+      'Error fetching student:',
+      error
+    );
+
+    return res.status(500).json({
+
+      error:
+        'Server error.'
+    });
+  }
+});
 /* =====================================================
    BULK IMPORT
 ===================================================== */

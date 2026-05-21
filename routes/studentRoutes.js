@@ -852,33 +852,49 @@ router.get(
 
 router.get(
   '/name/:name',
-  async (req, res) => {
+  async(req,res)=>{
 
-    try {
+    try{
 
-      const name =
+      const name=
         String(
-          req.params.name || ''
-        ).trim();
+          req.params.name||''
+        )
+        .trim();
 
-      if (!name) {
+      if(!name){
 
         return res.status(400).json({
-
-          message:
-            'Name is required.'
+          message:'Name is required.'
         });
       }
 
-      const students =
+      /* =====================================
+         ESCAPE REGEX
+      ===================================== */
+
+      const escapedName=
+
+        name.replace(
+
+          /[.*+?^${}()|[\]\\]/g,
+
+          '\\$&'
+        );
+
+      /* =====================================
+         EXACT CASE INSENSITIVE MATCH
+      ===================================== */
+
+      const students=
+
         await Student.find({
 
-          name: {
+          name:{
 
-            $regex:
-              `^${name}$`,
+            $regex:`^${escapedName}$`,
 
-            $options: 'i'
+            $options:'i'
           }
         });
 
@@ -886,7 +902,7 @@ router.get(
         .status(200)
         .json(students);
 
-    } catch (error) {
+    }catch(error){
 
       console.error(
         'Error searching students by name:',
@@ -894,9 +910,7 @@ router.get(
       );
 
       return res.status(500).json({
-
-        error:
-          error.message
+        error:error.message
       });
     }
   }
